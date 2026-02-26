@@ -66,7 +66,7 @@ def test_model_types():
 def create_sample_dataset():
     """샘플 데이터셋 생성"""
     print("\n" + "=" * 60)
-    print("Creating Sample Dataset")
+    print("Creating Sample Dataset with Decoys")
     print("=" * 60)
     
     # 샘플 화합물 (활성/비활성)

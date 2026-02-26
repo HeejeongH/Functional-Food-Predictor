@@ -252,6 +252,52 @@ with tab2:
             
             include_descriptors = st.checkbox("Molecular Descriptors 포함", value=True)
         
+        # Decoy 생성 옵션 (이진 분류일 때만)
+        if dataset_type == 'binary':
+            st.markdown("---")
+            st.markdown("#### 🎯 Decoy 생성 설정 (DUDE-style)")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                use_decoys = st.checkbox(
+                    "Decoy 사용",
+                    value=False,
+                    help="DUDE-style decoy를 생성하여 비활성 샘플로 사용"
+                )
+            
+            with col2:
+                decoy_ratio = st.number_input(
+                    "Decoy 비율 (1:N)",
+                    value=50,
+                    min_value=1,
+                    max_value=100,
+                    step=1,
+                    help="활성 화합물 1개당 생성할 Decoy 개수",
+                    disabled=not use_decoys
+                )
+            
+            with col3:
+                decoy_method = st.selectbox(
+                    "Decoy 생성 방법",
+                    options=['dude', 'random'],
+                    format_func=lambda x: "DUDE-style (물리화학적 유사)" if x == 'dude' else "Random (빠름)",
+                    disabled=not use_decoys
+                )
+            
+            if use_decoys:
+                st.info("""
+                💡 **Decoy란?**
+                - 물리화학적 특성은 활성 화합물과 유사하지만 구조적으로 다른 화합물
+                - DUDE (Database of Useful Decoys: Enhanced) 방식 사용
+                - 모델이 단순한 특성이 아닌 구조를 학습하도록 유도
+                - 일반적으로 1:50 비율 권장 (활성 10개 → Decoy 500개)
+                """)
+        else:
+            use_decoys = False
+            decoy_ratio = 50
+            decoy_method = 'dude'
+        
         if st.button("🔄 특성 변환 시작", type="primary"):
             with st.spinner("분자 특성을 변환하는 중..."):
                 try:
@@ -263,7 +309,11 @@ with tab2:
                         include_descriptors=include_descriptors,
                         pos_threshold=pos_threshold,
                         neg_threshold=neg_threshold,
-                        dataset_type=dataset_type
+                        dataset_type=dataset_type,
+                        use_decoys=use_decoys,
+                        decoy_ratio=float(decoy_ratio),
+                        decoy_method=decoy_method,
+                        decoy_source=st.session_state.collected_data if use_decoys else None
                     )
                     
                     st.session_state.prepared_data = prepared_df

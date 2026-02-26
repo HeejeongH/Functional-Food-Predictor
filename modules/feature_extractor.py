@@ -111,7 +111,11 @@ def prepare_training_data(
     include_descriptors: bool = True,
     pos_threshold: float = 10000,
     neg_threshold: float = 20000,
-    dataset_type: str = 'binary'
+    dataset_type: str = 'binary',
+    use_decoys: bool = False,
+    decoy_ratio: float = 50.0,
+    decoy_method: str = 'dude',
+    decoy_source: Optional[pd.DataFrame] = None
 ) -> pd.DataFrame:
     """
     학습용 데이터 준비
@@ -125,6 +129,10 @@ def prepare_training_data(
         pos_threshold: 활성 임계값 (nM)
         neg_threshold: 비활성 임계값 (nM)
         dataset_type: 'binary' 또는 'active_only'
+        use_decoys: DUDE-style decoy 사용 여부
+        decoy_ratio: 활성:비활성 비율 (예: 50 = 1:50)
+        decoy_method: 'dude' (DUDE-style) 또는 'random'
+        decoy_source: Decoy 소스 데이터 (None이면 chembl_df 사용)
     
     Returns:
         처리된 데이터프레임
@@ -168,18 +176,50 @@ def prepare_training_data(
     
     df = pd.DataFrame(all_compounds)
     
-    # 활성/비활성 화합물 필터링 (문자열 '-' 제외)
-    if dataset_type == 'active_only':
-        filtered_data = df[df['potency'] == 1].copy()
-        print(f"Active compounds: {len(filtered_data)}")
+    # 활성 화합물 추출
+    active_data = df[df['potency'] == 1].copy()
+    print(f"Active compounds: {len(active_data)}")
+    
+    if len(active_data) == 0:
+        raise ValueError("No active compounds found (활성 화합물이 없습니다. IC50 임계값을 조정해보세요.)")
+    
+    # Decoy 생성 또는 기존 비활성 화합물 사용
+    if use_decoys and dataset_type == 'binary':
+        from modules.decoy_generator import add_decoys_to_dataset
+        
+        print(f"\n{'='*60}")
+        print(f"Generating DECOY compounds (method: {decoy_method})")
+        print(f"{'='*60}")
+        
+        # Decoy 소스 설정
+        if decoy_source is None:
+            decoy_source = chembl_df  # 전체 ChEMBL 데이터 사용
+        
+        # Decoy 추가
+        filtered_data = add_decoys_to_dataset(
+            active_df=active_data.rename(columns={'smiles': 'SMILES', 'potency': 'Y', 'ic50': 'IC50'}),
+            decoy_source=decoy_source,
+            decoy_ratio=decoy_ratio,
+            decoy_method=decoy_method,
+            similarity_threshold=0.75,
+            property_tolerance=0.2
+        )
+        
+        # 컬럼명 복원
+        filtered_data = filtered_data.rename(columns={'SMILES': 'smiles', 'IC50': 'ic50'})
+        print(f"\nFinal dataset: Active {(filtered_data['Y']==1).sum()}, Decoy {(filtered_data['Y']==0).sum()}")
+        
+    elif dataset_type == 'active_only':
+        filtered_data = active_data
+        print(f"Using only active compounds (no negatives)")
     else:
-        active_data = df[df['potency'] == 1].copy()
+        # 기존 방식: IC50 기반 비활성 화합물
         inactive_data = df[df['potency'] == 0].copy()
         filtered_data = pd.concat([active_data, inactive_data]).reset_index(drop=True)
-        print(f"Active: {len(active_data)}, Inactive: {len(inactive_data)}")
+        print(f"Using IC50-based inactive compounds: Active {len(active_data)}, Inactive {len(inactive_data)}")
     
     if len(filtered_data) == 0:
-        raise ValueError("No valid compounds found (활성 또는 비활성으로 분류된 화합물이 없습니다. IC50 임계값을 조정해보세요.)")
+        raise ValueError("No valid compounds found")
     
     # Fingerprint 계산
     print("Calculating fingerprints...")
