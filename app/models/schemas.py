@@ -19,6 +19,14 @@ class MLModelType(str, Enum):
     CATBOOST = "CatBoost"
     RANDOM_FOREST = "RandomForest"
 
+class FingerprintRequest(BaseModel):
+    smiles_list: List[str] = Field(..., description="SMILES 문자열 리스트")
+    fp_type: FingerprintType = Field(default=FingerprintType.ECFP4, description="Fingerprint 타입")
+
+class DescriptorRequest(BaseModel):
+    smiles_list: List[str] = Field(..., description="SMILES 문자열 리스트")
+    descriptor_type: DescriptorType = Field(default=DescriptorType.MORDRED_2D, description="Descriptor 타입")
+
 class TargetCollectionRequest(BaseModel):
     target_list: List[str] = Field(..., description="타겟 유전자 리스트")
     standard_type: str = Field(default="IC50", description="표준 타입 (IC50, Ki 등)")

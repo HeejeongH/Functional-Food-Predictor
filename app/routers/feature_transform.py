@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.models.schemas import DataTransformRequest
+from app.models.schemas import DataTransformRequest, FingerprintRequest, DescriptorRequest
 from app.services.feature_transform import FeatureTransformService
 import pandas as pd
 import os
@@ -69,7 +69,7 @@ async def transform_features(request: DataTransformRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/fingerprint")
-async def generate_fingerprint(smiles_list: list, fp_type: str = "ECFP4"):
+async def generate_fingerprint(request: FingerprintRequest):
     """
     SMILES 리스트를 Fingerprint로 변환
     
@@ -78,12 +78,12 @@ async def generate_fingerprint(smiles_list: list, fp_type: str = "ECFP4"):
     """
     try:
         fingerprints = feature_service.transform_to_fingerprint(
-            smiles_list=smiles_list,
-            fp_type=fp_type
+            smiles_list=request.smiles_list,
+            fp_type=request.fp_type.value
         )
         
         return {
-            "fingerprint_type": fp_type,
+            "fingerprint_type": request.fp_type.value,
             "count": len(fingerprints),
             "fingerprint_size": fingerprints.shape[1],
             "fingerprints": fingerprints.tolist()
@@ -93,7 +93,7 @@ async def generate_fingerprint(smiles_list: list, fp_type: str = "ECFP4"):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/descriptors")
-async def generate_descriptors(smiles_list: list, descriptor_type: str = "MORDRED_2D"):
+async def generate_descriptors(request: DescriptorRequest):
     """
     SMILES 리스트를 Molecular Descriptors로 변환
     
@@ -102,12 +102,12 @@ async def generate_descriptors(smiles_list: list, descriptor_type: str = "MORDRE
     """
     try:
         desc_df = feature_service.transform_to_descriptors(
-            smiles_list=smiles_list,
-            descriptor_type=descriptor_type
+            smiles_list=request.smiles_list,
+            descriptor_type=request.descriptor_type.value
         )
         
         return {
-            "descriptor_type": descriptor_type,
+            "descriptor_type": request.descriptor_type.value,
             "count": len(desc_df),
             "descriptor_count": len(desc_df.columns) - 1,  # canonical_SMILES 제외
             "descriptors": desc_df.to_dict('records')
