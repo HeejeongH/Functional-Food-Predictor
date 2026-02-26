@@ -168,7 +168,7 @@ def prepare_training_data(
     
     df = pd.DataFrame(all_compounds)
     
-    # 활성/비활성 화합물 필터링
+    # 활성/비활성 화합물 필터링 (문자열 '-' 제외)
     if dataset_type == 'active_only':
         filtered_data = df[df['potency'] == 1].copy()
         print(f"Active compounds: {len(filtered_data)}")
@@ -179,7 +179,7 @@ def prepare_training_data(
         print(f"Active: {len(active_data)}, Inactive: {len(inactive_data)}")
     
     if len(filtered_data) == 0:
-        raise ValueError("No valid compounds found")
+        raise ValueError("No valid compounds found (활성 또는 비활성으로 분류된 화합물이 없습니다. IC50 임계값을 조정해보세요.)")
     
     # Fingerprint 계산
     print("Calculating fingerprints...")
@@ -198,10 +198,10 @@ def prepare_training_data(
     valid_data = filtered_data.iloc[valid_indices].reset_index(drop=True)
     fingerprints = np.array(fingerprints)
     
-    # DataFrame 생성
+    # DataFrame 생성 (Y를 명시적으로 정수형으로 변환)
     meta_data = pd.DataFrame({
         'SMILES': valid_data['smiles'],
-        'Y': valid_data['potency'],
+        'Y': valid_data['potency'].astype(int),  # 명시적 정수 변환
         'IC50': valid_data['ic50']
     })
     
@@ -224,5 +224,12 @@ def prepare_training_data(
             result_df = pd.concat([result_df, desc_df], axis=1)
     
     print(f"Final dataset: {len(result_df)} compounds, {len(result_df.columns)} features")
+    
+    # 데이터 검증: Y 컬럼이 0 또는 1만 포함하는지 확인
+    unique_y = result_df['Y'].unique()
+    if not all(y in [0, 1] for y in unique_y):
+        raise ValueError(f"Y 컬럼에 잘못된 값이 있습니다: {unique_y}. 0과 1만 허용됩니다.")
+    
+    print(f"Data validation passed - Y values: {sorted(unique_y)}")
     
     return result_df
