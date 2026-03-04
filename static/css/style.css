@@ -1,153 +1,400 @@
-/* 전역 스타일 */
+/* Modern PCI Prediction System Styles */
+
+:root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --secondary: #8b5cf6;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --info: #3b82f6;
+    --light: #f8fafc;
+    --dark: #1e293b;
+    --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+}
+
 * {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+/* Smooth Scroll */
+html {
     scroll-behavior: smooth;
 }
 
-/* 네비게이션 링크 */
-.nav-link {
-    @apply px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-100 transition duration-200;
+/* Navigation */
+nav {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: var(--shadow-lg);
+    transition: all 0.3s ease;
 }
 
-/* 통계 카드 */
+.nav-link {
+    position: relative;
+    padding: 0.5rem 1rem;
+    color: var(--dark);
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border-radius: 0.5rem;
+}
+
+.nav-link:hover {
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--primary);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.nav-link:hover::after {
+    width: 80%;
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: var(--shadow-xl);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+}
+
+/* Stat Cards */
 .stat-card {
-    @apply bg-white rounded-lg shadow-md p-6 flex items-center space-x-4 hover:shadow-lg transition duration-200;
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(99, 102, 241, 0.05);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--primary);
 }
 
 .stat-icon {
-    @apply w-16 h-16 rounded-full flex items-center justify-center text-2xl;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
 }
 
 .stat-content {
-    @apply flex-1;
+    flex: 1;
 }
 
 .stat-label {
-    @apply text-sm text-gray-500 font-medium;
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
 }
 
 .stat-value {
-    @apply text-2xl font-bold text-gray-800 mt-1;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark);
 }
 
-/* 워크플로우 단계 */
+/* Workflow Steps */
 .workflow-step {
-    @apply flex flex-col items-center bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition duration-200 relative;
+    flex: 1;
+    text-align: center;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 1rem;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.workflow-step:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-xl);
 }
 
 .workflow-number {
-    @apply absolute -top-3 -left-3 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm;
+    position: absolute;
+    top: -0.75rem;
+    right: -0.75rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    background: var(--gradient-1);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.125rem;
+    box-shadow: var(--shadow-lg);
 }
 
-/* 폼 요소 */
-.form-group {
-    @apply mb-4;
-}
-
-.form-label {
-    @apply block text-sm font-medium text-gray-700 mb-2;
-}
-
-.form-input {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200;
-}
-
-/* 버튼 */
+/* Buttons */
 .btn {
-    @apply px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center justify-center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    box-shadow: var(--shadow);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn:active {
+    transform: translateY(0);
 }
 
 .btn-primary {
-    @apply bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800;
+    background: var(--gradient-1);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #6941a5 100%);
 }
 
 .btn-secondary {
-    @apply bg-gray-200 text-gray-700 hover:bg-gray-300 active:bg-gray-400;
+    background: var(--gradient-3);
+    color: white;
 }
 
 .btn-success {
-    @apply bg-green-600 text-white hover:bg-green-700 active:bg-green-800;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
 }
 
 .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700 active:bg-red-800;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
 }
 
-/* 결과 박스 */
+/* Form Elements */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-input:hover {
+    border-color: #cbd5e1;
+}
+
+/* Select Dropdown */
+select.form-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}
+
+/* Result Box */
 .result-box {
-    @apply bg-gray-50 border border-gray-200 rounded-lg p-6 min-h-[200px];
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+    border: 2px dashed rgba(99, 102, 241, 0.2);
+    border-radius: 1rem;
+    padding: 2rem;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
 }
 
-/* 모델 카드 */
-.model-card {
-    @apply bg-gray-50 border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-md transition duration-200 cursor-pointer;
+.result-box:hover {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
 }
 
-/* 예측 결과 아이템 */
-.prediction-item {
-    @apply bg-white border border-gray-200 rounded-lg p-4 mb-3 hover:shadow-md transition duration-200;
-}
-
-/* 로딩 스피너 */
-.spinner {
-    @apply inline-block w-6 h-6 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin;
-}
-
-/* 알림 메시지 */
+/* Alerts */
 .alert {
-    @apply px-4 py-3 rounded-lg mb-4;
+    padding: 1rem 1.5rem;
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 500;
+    box-shadow: var(--shadow);
 }
 
 .alert-success {
-    @apply bg-green-100 border border-green-400 text-green-700;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+    border: 2px solid #10b981;
+    color: #065f46;
 }
 
 .alert-error {
-    @apply bg-red-100 border border-red-400 text-red-700;
-}
-
-.alert-info {
-    @apply bg-blue-100 border border-blue-400 text-blue-700;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+    border: 2px solid #ef4444;
+    color: #991b1b;
 }
 
 .alert-warning {
-    @apply bg-yellow-100 border border-yellow-400 text-yellow-700;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%);
+    border: 2px solid #f59e0b;
+    color: #92400e;
 }
 
-/* 테이블 */
-.table {
-    @apply w-full border-collapse;
+.alert-info {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%);
+    border: 2px solid #3b82f6;
+    color: #1e40af;
 }
 
-.table th {
-    @apply bg-gray-100 border border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-700;
+/* Spinner */
+.spinner {
+    border: 4px solid rgba(99, 102, 241, 0.1);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    width: 3rem;
+    height: 3rem;
+    animation: spin 1s linear infinite;
 }
 
-.table td {
-    @apply border border-gray-300 px-4 py-2 text-sm text-gray-600;
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
-/* 배지 */
-.badge {
-    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold;
+/* Loading State */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 2rem;
 }
 
-.badge-success {
-    @apply bg-green-100 text-green-800;
+/* Section Headers */
+section h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
-.badge-warning {
-    @apply bg-yellow-100 text-yellow-800;
+/* Model List */
+.model-item {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
 }
 
-.badge-danger {
-    @apply bg-red-100 text-red-800;
+.model-item:hover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.05);
+    transform: translateX(5px);
 }
 
-.badge-info {
-    @apply bg-blue-100 text-blue-800;
+.model-item.selected {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    box-shadow: var(--shadow);
 }
 
-/* 애니메이션 */
+/* Responsive Grid */
+.grid-responsive {
+    display: grid;
+    gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .grid-responsive {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .grid-responsive {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Animations */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -163,13 +410,125 @@
     animation: fadeIn 0.5s ease-out;
 }
 
-/* 반응형 */
-@media (max-width: 768px) {
-    .nav-link {
-        @apply text-xs px-2;
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn 0.5s ease-out;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--gradient-1);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Tooltip */
+.tooltip {
+    position: relative;
+}
+
+.tooltip::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.5rem 1rem;
+    background: var(--dark);
+    color: white;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    margin-bottom: 0.5rem;
+}
+
+.tooltip:hover::before {
+    opacity: 1;
+}
+
+/* Badge */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Feature Highlight */
+.feature-highlight {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--primary);
+}
+
+.feature-highlight:hover {
+    box-shadow: var(--shadow-xl);
+    transform: translateX(5px);
+}
+
+/* Print Styles */
+@media print {
+    nav, .btn {
+        display: none;
     }
     
-    .stat-card {
-        @apply flex-col text-center space-x-0 space-y-2;
+    body {
+        background: white;
+    }
+    
+    .card {
+        box-shadow: none;
+        border: 1px solid #e2e8f0;
     }
 }

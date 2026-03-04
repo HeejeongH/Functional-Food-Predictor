@@ -4,28 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PCI Prediction - 단백질-화합물 상호작용 예측 시스템</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+<body>
     <!-- 네비게이션 -->
     <nav class="bg-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <i class="fas fa-flask text-indigo-600 text-3xl mr-3"></i>
-                    <h1 class="text-2xl font-bold text-gray-800">PCI Prediction</h1>
+                    <div class="flex-shrink-0 flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+                            <i class="fas fa-flask text-white text-xl"></i>
+                        </div>
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">PCI Prediction</h1>
+                    </div>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <a href="#home" class="nav-link">홈</a>
-                    <a href="#data-collection" class="nav-link">데이터 수집</a>
-                    <a href="#feature-transform" class="nav-link">특성 변환</a>
-                    <a href="#model-training" class="nav-link">모델 학습</a>
-                    <a href="#prediction" class="nav-link">예측</a>
-                    <a href="#shap" class="nav-link">SHAP 분석</a>
+                <div class="hidden md:flex items-center space-x-1">
+                    <a href="#home" class="nav-link"><i class="fas fa-home mr-1"></i> 홈</a>
+                    <a href="#data-collection" class="nav-link"><i class="fas fa-download mr-1"></i> 데이터</a>
+                    <a href="#feature-transform" class="nav-link"><i class="fas fa-cogs mr-1"></i> 특성</a>
+                    <a href="#model-training" class="nav-link"><i class="fas fa-robot mr-1"></i> 학습</a>
+                    <a href="#prediction" class="nav-link"><i class="fas fa-chart-line mr-1"></i> 예측</a>
+                    <a href="#shap" class="nav-link"><i class="fas fa-lightbulb mr-1"></i> 분석</a>
                 </div>
             </div>
         </div>
@@ -35,23 +42,30 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         <!-- 홈 섹션 -->
-        <section id="home" class="mb-12">
-            <div class="bg-white rounded-lg shadow-xl p-8">
+        <section id="home" class="mb-12 fade-in">
+            <div class="card">
                 <div class="text-center mb-8">
+                    <div class="inline-block p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-4">
+                        <i class="fas fa-dna text-white text-5xl"></i>
+                    </div>
                     <h2 class="text-4xl font-bold text-gray-800 mb-4">
-                        <i class="fas fa-dna text-indigo-600 mr-3"></i>
                         단백질-화합물 상호작용 예측 시스템
                     </h2>
-                    <p class="text-xl text-gray-600">
-                        AI 기반 푸드테크 연구를 위한 통합 플랫폼
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                        AI 기반 푸드테크 연구를 위한 통합 플랫폼으로 ChEMBL/BindingDB 데이터를 활용한 머신러닝 예측
                     </p>
+                    <div class="flex justify-center gap-4 mt-6">
+                        <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i> FastAPI</span>
+                        <span class="badge badge-info"><i class="fas fa-brain mr-1"></i> ML Models</span>
+                        <span class="badge badge-warning"><i class="fas fa-flask mr-1"></i> RDKit</span>
+                    </div>
                 </div>
 
                 <!-- 시스템 상태 -->
-                <div id="system-status" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div id="system-status" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <div class="stat-card">
-                        <div class="stat-icon bg-green-100">
-                            <i class="fas fa-heartbeat text-green-600"></i>
+                        <div class="stat-icon bg-gradient-to-br from-green-400 to-green-600">
+                            <i class="fas fa-heartbeat text-white"></i>
                         </div>
                         <div class="stat-content">
                             <p class="stat-label">시스템 상태</p>
@@ -59,8 +73,8 @@
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon bg-blue-100">
-                            <i class="fas fa-database text-blue-600"></i>
+                        <div class="stat-icon bg-gradient-to-br from-blue-400 to-blue-600">
+                            <i class="fas fa-database text-white"></i>
                         </div>
                         <div class="stat-content">
                             <p class="stat-label">수집된 데이터셋</p>
@@ -68,8 +82,8 @@
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon bg-purple-100">
-                            <i class="fas fa-brain text-purple-600"></i>
+                        <div class="stat-icon bg-gradient-to-br from-purple-400 to-purple-600">
+                            <i class="fas fa-brain text-white"></i>
                         </div>
                         <div class="stat-content">
                             <p class="stat-label">학습된 모델</p>
@@ -77,27 +91,67 @@
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon bg-orange-100">
-                            <i class="fas fa-chart-line text-orange-600"></i>
+                        <div class="stat-icon bg-gradient-to-br from-orange-400 to-orange-600">
+                            <i class="fas fa-chart-line text-white"></i>
                         </div>
                         <div class="stat-content">
-                            <p class="stat-label">예측 수행</p>
+                            <p class="stat-label">예측 완료</p>
                             <p id="status-predictions" class="stat-value">0</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- 워크플로우 -->
-                <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-6">
-                    <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">
-                        <i class="fas fa-project-diagram mr-2"></i>
+                <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center flex items-center justify-center gap-2">
+                        <i class="fas fa-project-diagram text-indigo-600"></i>
                         연구 워크플로우
                     </h3>
-                    <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div class="workflow-step">
                             <div class="workflow-number">1</div>
-                            <i class="fas fa-download text-3xl text-indigo-600 mb-2"></i>
-                            <p class="font-semibold">데이터 수집</p>
+                            <div class="text-indigo-600 mb-3">
+                                <i class="fas fa-download text-4xl"></i>
+                            </div>
+                            <p class="font-semibold text-gray-800">데이터 수집</p>
+                            <p class="text-sm text-gray-500 mt-1">ChEMBL/BindingDB</p>
+                        </div>
+                        <div class="workflow-step">
+                            <div class="workflow-number">2</div>
+                            <div class="text-purple-600 mb-3">
+                                <i class="fas fa-cogs text-4xl"></i>
+                            </div>
+                            <p class="font-semibold text-gray-800">특성 변환</p>
+                            <p class="text-sm text-gray-500 mt-1">Fingerprint + Descriptor</p>
+                        </div>
+                        <div class="workflow-step">
+                            <div class="workflow-number">3</div>
+                            <div class="text-blue-600 mb-3">
+                                <i class="fas fa-robot text-4xl"></i>
+                            </div>
+                            <p class="font-semibold text-gray-800">모델 학습</p>
+                            <p class="text-sm text-gray-500 mt-1">XGBoost/AutoML</p>
+                        </div>
+                        <div class="workflow-step">
+                            <div class="workflow-number">4</div>
+                            <div class="text-green-600 mb-3">
+                                <i class="fas fa-chart-line text-4xl"></i>
+                            </div>
+                            <p class="font-semibold text-gray-800">예측</p>
+                            <p class="text-sm text-gray-500 mt-1">활성/비활성</p>
+                        </div>
+                        <div class="workflow-step">
+                            <div class="workflow-number">5</div>
+                            <div class="text-orange-600 mb-3">
+                                <i class="fas fa-lightbulb text-4xl"></i>
+                            </div>
+                            <p class="font-semibold text-gray-800">SHAP 분석</p>
+                            <p class="text-sm text-gray-500 mt-1">특성 중요도</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
                             <p class="text-sm text-gray-600">ChEMBL/BindingDB</p>
                         </div>
                         <i class="fas fa-arrow-right text-2xl text-gray-400 hidden md:block"></i>
