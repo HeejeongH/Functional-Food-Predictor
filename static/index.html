@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCI Prediction - 단백질-화합물 상호작용 예측 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- 네비게이션 -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-flask text-indigo-600 text-3xl mr-3"></i>
+                    <h1 class="text-2xl font-bold text-gray-800">PCI Prediction</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="#home" class="nav-link">홈</a>
+                    <a href="#data-collection" class="nav-link">데이터 수집</a>
+                    <a href="#feature-transform" class="nav-link">특성 변환</a>
+                    <a href="#model-training" class="nav-link">모델 학습</a>
+                    <a href="#prediction" class="nav-link">예측</a>
+                    <a href="#shap" class="nav-link">SHAP 분석</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 메인 컨텐츠 -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- 홈 섹션 -->
+        <section id="home" class="mb-12">
+            <div class="bg-white rounded-lg shadow-xl p-8">
+                <div class="text-center mb-8">
+                    <h2 class="text-4xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-dna text-indigo-600 mr-3"></i>
+                        단백질-화합물 상호작용 예측 시스템
+                    </h2>
+                    <p class="text-xl text-gray-600">
+                        AI 기반 푸드테크 연구를 위한 통합 플랫폼
+                    </p>
+                </div>
+
+                <!-- 시스템 상태 -->
+                <div id="system-status" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-green-100">
+                            <i class="fas fa-heartbeat text-green-600"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p class="stat-label">시스템 상태</p>
+                            <p id="status-health" class="stat-value">확인 중...</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon bg-blue-100">
+                            <i class="fas fa-database text-blue-600"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p class="stat-label">수집된 데이터셋</p>
+                            <p id="status-datasets" class="stat-value">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon bg-purple-100">
+                            <i class="fas fa-brain text-purple-600"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p class="stat-label">학습된 모델</p>
+                            <p id="status-models" class="stat-value">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon bg-orange-100">
+                            <i class="fas fa-chart-line text-orange-600"></i>
+                        </div>
+                        <div class="stat-content">
+                            <p class="stat-label">예측 수행</p>
+                            <p id="status-predictions" class="stat-value">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 워크플로우 -->
+                <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-6">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">
+                        <i class="fas fa-project-diagram mr-2"></i>
+                        연구 워크플로우
+                    </h3>
+                    <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
+                        <div class="workflow-step">
+                            <div class="workflow-number">1</div>
+                            <i class="fas fa-download text-3xl text-indigo-600 mb-2"></i>
+                            <p class="font-semibold">데이터 수집</p>
+                            <p class="text-sm text-gray-600">ChEMBL/BindingDB</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-2xl text-gray-400 hidden md:block"></i>
+                        <div class="workflow-step">
+                            <div class="workflow-number">2</div>
+                            <i class="fas fa-cogs text-3xl text-blue-600 mb-2"></i>
+                            <p class="font-semibold">특성 변환</p>
+                            <p class="text-sm text-gray-600">Fingerprint/Descriptor</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-2xl text-gray-400 hidden md:block"></i>
+                        <div class="workflow-step">
+                            <div class="workflow-number">3</div>
+                            <i class="fas fa-robot text-3xl text-purple-600 mb-2"></i>
+                            <p class="font-semibold">모델 학습</p>
+                            <p class="text-sm text-gray-600">AutoML/TabPFN</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-2xl text-gray-400 hidden md:block"></i>
+                        <div class="workflow-step">
+                            <div class="workflow-number">4</div>
+                            <i class="fas fa-bullseye text-3xl text-green-600 mb-2"></i>
+                            <p class="font-semibold">예측</p>
+                            <p class="text-sm text-gray-600">활성 예측</p>
+                        </div>
+                        <i class="fas fa-arrow-right text-2xl text-gray-400 hidden md:block"></i>
+                        <div class="workflow-step">
+                            <div class="workflow-number">5</div>
+                            <i class="fas fa-chart-bar text-3xl text-orange-600 mb-2"></i>
+                            <p class="font-semibold">SHAP 분석</p>
+                            <p class="text-sm text-gray-600">특성 중요도</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 데이터 수집 섹션 -->
+        <section id="data-collection" class="mb-12 hidden">
+            <div class="bg-white rounded-lg shadow-xl p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                    <i class="fas fa-download text-indigo-600 mr-3"></i>
+                    데이터 수집
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- 입력 폼 -->
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">타겟 유전자 목록</label>
+                            <textarea id="target-list" class="form-input h-32" placeholder="PDE4&#10;PDE5&#10;PDE3"></textarea>
+                            <p class="text-sm text-gray-500 mt-1">각 유전자를 줄바꿈으로 구분해주세요</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">표준 타입</label>
+                            <select id="standard-type" class="form-input">
+                                <option value="IC50">IC50</option>
+                                <option value="Ki">Ki</option>
+                                <option value="EC50">EC50</option>
+                            </select>
+                        </div>
+
+                        <button onclick="collectData()" class="btn btn-primary w-full">
+                            <i class="fas fa-download mr-2"></i>
+                            데이터 수집 시작
+                        </button>
+                    </div>
+
+                    <!-- 결과 표시 -->
+                    <div>
+                        <div id="collection-result" class="result-box">
+                            <p class="text-gray-500 text-center">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                데이터 수집 결과가 여기에 표시됩니다
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 특성 변환 섹션 -->
+        <section id="feature-transform" class="mb-12 hidden">
+            <div class="bg-white rounded-lg shadow-xl p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                    <i class="fas fa-cogs text-blue-600 mr-3"></i>
+                    특성 변환
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- 입력 폼 -->
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">단백질 이름</label>
+                            <input type="text" id="protein-name" class="form-input" placeholder="PDE4">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Fingerprint 타입</label>
+                            <select id="fingerprint-type" class="form-input">
+                                <option value="ECFP4">ECFP4</option>
+                                <option value="MACCS">MACCS</option>
+                                <option value="MORGAN">MORGAN</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">데이터셋 타입</label>
+                            <select id="dataset-type" class="form-input">
+                                <option value="transfer">Transfer Learning</option>
+                                <option value="fewshot">Few-shot Learning</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-group">
+                                <label class="form-label">활성 임계값 (nM)</label>
+                                <input type="number" id="pos-threshold" class="form-input" value="10000">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">비활성 임계값 (nM)</label>
+                                <input type="number" id="neg-threshold" class="form-input" value="20000">
+                            </div>
+                        </div>
+
+                        <button onclick="transformFeatures()" class="btn btn-primary w-full">
+                            <i class="fas fa-magic mr-2"></i>
+                            특성 변환 시작
+                        </button>
+                    </div>
+
+                    <!-- 결과 표시 -->
+                    <div>
+                        <div id="transform-result" class="result-box">
+                            <p class="text-gray-500 text-center">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                특성 변환 결과가 여기에 표시됩니다
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 모델 학습 섹션 -->
+        <section id="model-training" class="mb-12 hidden">
+            <div class="bg-white rounded-lg shadow-xl p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                    <i class="fas fa-robot text-purple-600 mr-3"></i>
+                    모델 학습 및 예측
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- 학습 폼 -->
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">모델 학습</h3>
+                        
+                        <div class="form-group">
+                            <label class="form-label">단백질 이름</label>
+                            <input type="text" id="train-protein-name" class="form-input" placeholder="PDE4">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">모델 타입</label>
+                            <select id="model-type" class="form-input">
+                                <option value="XGBoost">XGBoost</option>
+                                <option value="LightGBM">LightGBM</option>
+                                <option value="CatBoost">CatBoost</option>
+                                <option value="RandomForest">Random Forest</option>
+                                <option value="TabPFN">TabPFN</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">특성 타입</label>
+                            <select id="feature-type" class="form-input">
+                                <option value="fingerprint">Fingerprint</option>
+                                <option value="descriptor">Descriptor</option>
+                            </select>
+                        </div>
+
+                        <button onclick="trainModel()" class="btn btn-primary w-full">
+                            <i class="fas fa-graduation-cap mr-2"></i>
+                            모델 학습 시작
+                        </button>
+
+                        <div id="train-result" class="result-box mt-4">
+                            <p class="text-gray-500 text-center">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                학습 결과가 여기에 표시됩니다
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 학습된 모델 목록 -->
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">학습된 모델</h3>
+                        <div id="model-list" class="space-y-2 max-h-96 overflow-y-auto">
+                            <p class="text-gray-500 text-center py-8">
+                                <i class="fas fa-box-open mr-2"></i>
+                                학습된 모델이 없습니다
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 예측 섹션 -->
+        <section id="prediction" class="mb-12 hidden">
+            <div class="bg-white rounded-lg shadow-xl p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                    <i class="fas fa-bullseye text-green-600 mr-3"></i>
+                    화합물 활성 예측
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- 예측 폼 -->
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">모델 ID</label>
+                            <input type="text" id="predict-model-id" class="form-input" placeholder="PDE4_XGBoost_20260226_120000">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">SMILES 목록</label>
+                            <textarea id="smiles-list" class="form-input h-32" placeholder="CCO&#10;CC(=O)O&#10;c1ccccc1"></textarea>
+                            <p class="text-sm text-gray-500 mt-1">각 SMILES를 줄바꿈으로 구분해주세요</p>
+                        </div>
+
+                        <button onclick="predictCompounds()" class="btn btn-primary w-full">
+                            <i class="fas fa-search mr-2"></i>
+                            예측 시작
+                        </button>
+                    </div>
+
+                    <!-- 예측 결과 -->
+                    <div>
+                        <div id="prediction-result" class="result-box">
+                            <p class="text-gray-500 text-center">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                예측 결과가 여기에 표시됩니다
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SHAP 분석 섹션 -->
+        <section id="shap" class="mb-12 hidden">
+            <div class="bg-white rounded-lg shadow-xl p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                    <i class="fas fa-chart-bar text-orange-600 mr-3"></i>
+                    SHAP 특성 중요도 분석
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- SHAP 폼 -->
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">모델 ID</label>
+                            <input type="text" id="shap-model-id" class="form-input" placeholder="PDE4_XGBoost_20260226_120000">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">상위 N개 특성</label>
+                            <input type="number" id="top-n" class="form-input" value="20">
+                        </div>
+
+                        <button onclick="analyzeSHAP()" class="btn btn-primary w-full">
+                            <i class="fas fa-microscope mr-2"></i>
+                            SHAP 분석 시작
+                        </button>
+                    </div>
+
+                    <!-- SHAP 결과 -->
+                    <div>
+                        <div id="shap-result" class="result-box">
+                            <p class="text-gray-500 text-center">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                SHAP 분석 결과가 여기에 표시됩니다
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- 푸터 -->
+    <footer class="bg-white shadow-lg mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="text-center text-gray-600">
+                <p><i class="fas fa-flask mr-2"></i>PCI Prediction System</p>
+                <p class="text-sm mt-2">푸드테크 연구를 위한 AI 기반 단백질-화합물 상호작용 예측 플랫폼</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 import os
 
@@ -48,24 +49,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 정적 파일 서빙
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # 라우터 등록
 app.include_router(data_collection.router)
 app.include_router(feature_transform.router)
 app.include_router(model_training.router)
 app.include_router(shap_analysis.router)
 
-# 루트 엔드포인트
+# 루트 엔드포인트 - 웹사이트 메인 페이지
 @app.get("/")
 async def root():
     """
-    API 상태 확인
+    웹사이트 메인 페이지
     """
-    return {
-        "message": "PCI Prediction API is running",
-        "version": "1.0.0",
-        "documentation": "/docs",
-        "status": "healthy"
-    }
+    return FileResponse('static/index.html')
 
 # 헬스 체크
 @app.get("/health")
