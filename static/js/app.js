@@ -135,9 +135,9 @@ async function transformFeatures() {
         
         const data = response.data;
         
-        // Fingerprint 크기 계산
-        const fpSize = fingerprintType === 'MACCS' ? 167 : 1024;
-        const descriptorCount = data.feature_count - fpSize;
+        // Fingerprint 크기와 descriptor 수 계산
+        const fpSize = data.fingerprint_size || (fingerprintType === 'MACCS' ? 167 : 1024);
+        const descriptorCount = data.descriptor_count || (data.feature_count - fpSize);
         
         resultDiv.innerHTML = `
             <div class="alert alert-success">
@@ -146,8 +146,8 @@ async function transformFeatures() {
             </div>
             <div class="mt-4 space-y-2">
                 <p><strong>단백질:</strong> ${data.protein_name}</p>
-                <p><strong>Fingerprint:</strong> ${fingerprintType} (${fpSize}비트)</p>
-                <p><strong>데이터셋:</strong> ${datasetType} / ${datasetRatio} / ${ignore3D ? '2D' : '3D'}</p>
+                <p><strong>Fingerprint:</strong> ${data.fingerprint_type || fingerprintType} (${fpSize}비트)</p>
+                <p><strong>데이터셋:</strong> ${data.dataset_type || datasetType} / ${data.dataset_ratio || datasetRatio} / ${data.ignore3D !== undefined ? (data.ignore3D ? '2D' : '3D') : (ignore3D ? '2D' : '3D')}</p>
                 <p><strong>총 화합물:</strong> ${data.total_compounds}개</p>
                 <p><strong>활성 화합물:</strong> ${data.active_compounds}개</p>
                 <p><strong>비활성 화합물:</strong> ${data.inactive_compounds}개</p>

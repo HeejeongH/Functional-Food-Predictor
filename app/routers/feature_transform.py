@@ -11,12 +11,13 @@ feature_service = FeatureTransformService()
 @router.post("/transform")
 async def transform_features(request: DataTransformRequest):
     """
-    수집된 데이터를 Fingerprint 또는 Molecular Descriptor로 변환
+    수집된 데이터를 Fingerprint + Descriptor로 변환 (원본 연구 방식)
     
     - **protein_name**: 단백질 이름
-    - **fingerprint_type**: ECFP4, MACCS, MORGAN (선택)
-    - **descriptor_type**: MORDRED_2D, MORDRED_3D, CUSTOM (선택)
+    - **fingerprint_type**: ECFP4, MACCS, MORGAN
     - **dataset_type**: fewshot 또는 transfer
+    - **dataset_ratio**: 5x, 10x, 20x
+    - **ignore3D**: True (2D만), False (3D 포함)
     - **pos_threshold**: 활성 화합물 IC50 임계값 (nM)
     - **neg_threshold**: 비활성 화합물 IC50 임계값 (nM)
     """
@@ -37,7 +38,7 @@ async def transform_features(request: DataTransformRequest):
         except:
             bindingdb_df = pd.DataFrame()
         
-        # 데이터 변환
+        # 1. 기본 데이터 변환 (SMILES + potency)
         result_df = feature_service.prepare_training_data(
             chembl_df=chembl_df,
             bindingdb_df=bindingdb_df,
@@ -53,19 +54,55 @@ async def transform_features(request: DataTransformRequest):
                 detail="Failed to transform data. Check input data quality."
             )
         
+        # 2. Fingerprint + Descriptor 변환 (원본 연구 방식)
+        # 컬럼명 확인 (SMILES 또는 canonical_SMILES)
+        smiles_col = 'canonical_SMILES' if 'canonical_SMILES' in result_df.columns else 'SMILES'
+        smiles_list = result_df[smiles_col].tolist()
+        
+        # Fingerprint + Descriptor 생성
+        features_df = feature_service.transform_to_fingerprint_with_descriptors(
+            smiles_list=smiles_list,
+            fp_type=request.fingerprint_type.value,
+            dataset_ratio=request.dataset_ratio,
+            ignore3D=request.ignore3D
+        )
+        
+        # SMILES, Y(label), potency 컬럼 추가
+        features_df['SMILES'] = result_df[smiles_col].values
+        features_df['Y'] = result_df['Y'].values
+        features_df['potency'] = result_df['potency'].values
+        
+        # 저장
+        output_folder = "raw/TransferSet" if request.dataset_type == "transfer" else "raw/FewshotSet"
+        os.makedirs(output_folder, exist_ok=True)
+        output_path = f"{output_folder}/{request.protein_name}.csv"
+        features_df.to_csv(output_path, index=False)
+        
+        # Fingerprint 크기 계산
+        fp_size = 167 if request.fingerprint_type == "MACCS" else 1024
+        descriptor_count = len(features_df.columns) - 3 - fp_size  # SMILES, Y, potency 제외
+        
         return {
             "protein_name": request.protein_name,
+            "fingerprint_type": request.fingerprint_type.value,
             "dataset_type": request.dataset_type,
-            "total_compounds": len(result_df),
-            "active_compounds": int((result_df['Y'] == 1).sum()),
-            "inactive_compounds": int((result_df['Y'] == 0).sum()),
-            "feature_count": len(result_df.columns) - 3,  # SMILES, Y, potency 제외
+            "dataset_ratio": request.dataset_ratio,
+            "ignore3D": request.ignore3D,
+            "total_compounds": len(features_df),
+            "active_compounds": int((features_df['Y'] == 1).sum()),
+            "inactive_compounds": int((features_df['Y'] == 0).sum()),
+            "fingerprint_size": fp_size,
+            "descriptor_count": descriptor_count,
+            "feature_count": len(features_df.columns) - 3,  # SMILES, Y, potency 제외
+            "output_path": output_path,
             "message": "Data transformation completed successfully"
         }
     
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/fingerprint")
