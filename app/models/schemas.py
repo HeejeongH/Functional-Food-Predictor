@@ -22,6 +22,8 @@ class MLModelType(str, Enum):
 class FingerprintRequest(BaseModel):
     smiles_list: List[str] = Field(..., description="SMILES 문자열 리스트")
     fp_type: FingerprintType = Field(default=FingerprintType.ECFP4, description="Fingerprint 타입")
+    dataset_ratio: str = Field(default="5x", description="데이터셋 비율 (5x, 10x, 20x)")
+    ignore3D: bool = Field(default=True, description="3D descriptor 무시 여부")
 
 class DescriptorRequest(BaseModel):
     smiles_list: List[str] = Field(..., description="SMILES 문자열 리스트")
@@ -34,9 +36,11 @@ class TargetCollectionRequest(BaseModel):
 
 class DataTransformRequest(BaseModel):
     protein_name: str = Field(..., description="단백질 이름")
-    fingerprint_type: Optional[FingerprintType] = Field(None, description="Fingerprint 타입")
+    fingerprint_type: Optional[FingerprintType] = Field(FingerprintType.MACCS, description="Fingerprint 타입")
     descriptor_type: Optional[DescriptorType] = Field(None, description="Descriptor 타입")
-    dataset_type: str = Field(default="fewshot", description="fewshot 또는 transfer")
+    dataset_type: str = Field(default="transfer", description="fewshot 또는 transfer")
+    dataset_ratio: str = Field(default="5x", description="데이터셋 비율 (5x, 10x, 20x)")
+    ignore3D: bool = Field(default=True, description="3D descriptor 무시 여부 (True=2D만 사용)")
     pos_threshold: float = Field(default=10000, description="활성 임계값 (nM)")
     neg_threshold: float = Field(default=20000, description="비활성 임계값 (nM)")
 

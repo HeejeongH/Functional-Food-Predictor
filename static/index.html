@@ -197,10 +197,11 @@
                         <div class="form-group">
                             <label class="form-label">Fingerprint 타입</label>
                             <select id="fingerprint-type" class="form-input">
-                                <option value="ECFP4">ECFP4</option>
-                                <option value="MACCS">MACCS</option>
-                                <option value="MORGAN">MORGAN</option>
+                                <option value="MACCS" selected>MACCS (167비트 + Descriptor)</option>
+                                <option value="ECFP4">ECFP4 (1024비트 + Descriptor)</option>
+                                <option value="MORGAN">MORGAN (1024비트 + Descriptor)</option>
                             </select>
+                            <p class="text-sm text-gray-500 mt-1">MACCS 권장 (원본 연구 방식)</p>
                         </div>
 
                         <div class="form-group">
@@ -209,6 +210,24 @@
                                 <option value="transfer">Transfer Learning</option>
                                 <option value="fewshot">Few-shot Learning</option>
                             </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-group">
+                                <label class="form-label">데이터셋 비율</label>
+                                <select id="dataset-ratio" class="form-input">
+                                    <option value="5x" selected>5x (활성:비활성 = 1:5)</option>
+                                    <option value="10x">10x (활성:비활성 = 1:10)</option>
+                                    <option value="20x">20x (활성:비활성 = 1:20)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Descriptor 차원</label>
+                                <select id="ignore3d" class="form-input">
+                                    <option value="true" selected>2D만 사용</option>
+                                    <option value="false">3D 포함</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">

@@ -10,12 +10,14 @@
 
 1. ✅ **데이터 수집** - ChEMBL 및 BindingDB에서 IC50 기준 PCI 데이터 수집
 2. ✅ **특성 변환** - Fingerprint (ECFP4, MACCS, MORGAN) 및 Molecular Descriptor (Mordred 2D/3D) 계산
-3. ✅ **모델 학습** - TabPFN, XGBoost, LightGBM, CatBoost, RandomForest 모델 학습
-4. ✅ **예측** - 학습된 모델로 SMILES 리스트에 대한 활성 예측
-5. ✅ **SHAP 분석** - 중요 화학 특성 추출 및 시각화
-6. ✅ **RESTful API** - FastAPI 기반 표준 REST API
-7. ✅ **자동 문서화** - Swagger/OpenAPI 자동 생성
-8. ✅ **CORS 지원** - 프론트엔드 연동 가능
+3. ✅ **Fingerprint + Descriptor 조합** - descriptor_selection.csv 기반 선택된 descriptor와 fingerprint 결합
+4. ✅ **모델 학습** - TabPFN, XGBoost, LightGBM, CatBoost, RandomForest 모델 학습
+5. ✅ **예측** - 학습된 모델로 SMILES 리스트에 대한 활성 예측
+6. ✅ **SHAP 분석** - 중요 화학 특성 추출 및 시각화
+7. ✅ **RESTful API** - FastAPI 기반 표준 REST API
+8. ✅ **자동 문서화** - Swagger/OpenAPI 자동 생성
+9. ✅ **CORS 지원** - 프론트엔드 연동 가능
+10. ✅ **웹 인터페이스** - HTML/CSS/JavaScript 기반 사용자 친화적 UI
 
 ### 아직 구현되지 않은 기능
 
@@ -46,12 +48,60 @@ POST /api/data/collect
 ```
 
 #### 2. 특성 변환
+
+**MACCS Fingerprint + Descriptor (권장)**
+```bash
+POST /api/features/fingerprint
+{
+  "smiles_list": ["CCO", "CC(=O)O"],
+  "fp_type": "MACCS",
+  "dataset_ratio": "5x",
+  "ignore3D": true
+}
+
+# 응답 예시:
+{
+  "fingerprint_type": "MACCS",
+  "dataset_ratio": "5x",
+  "ignore3D": true,
+  "count": 2,
+  "fingerprint_size": 167,
+  "descriptor_count": 16,
+  "total_feature_count": 183  # 167 (MACCS) + 16 (선택된 descriptor)
+}
+```
+
+**ECFP4 Fingerprint + Descriptor**
+```bash
+POST /api/features/fingerprint
+{
+  "smiles_list": ["CCO", "c1ccccc1"],
+  "fp_type": "ECFP4",
+  "dataset_ratio": "10x",
+  "ignore3D": false
+}
+
+# 응답 예시:
+{
+  "fingerprint_type": "ECFP4",
+  "dataset_ratio": "10x",
+  "ignore3D": false,
+  "count": 2,
+  "fingerprint_size": 1024,
+  "descriptor_count": 16,
+  "total_feature_count": 1040  # 1024 (ECFP4) + 16 (선택된 descriptor)
+}
+```
+
+**Transfer/Fewshot용 데이터 변환**
 ```bash
 POST /api/features/transform
 {
   "protein_name": "PDE4",
-  "fingerprint_type": "ECFP4",
-  "dataset_type": "fewshot",
+  "fingerprint_type": "MACCS",
+  "dataset_type": "transfer",
+  "dataset_ratio": "5x",
+  "ignore3D": true,
   "pos_threshold": 10000,
   "neg_threshold": 20000
 }
@@ -100,12 +150,14 @@ GET /api/models/list
 
 - **ChEMBL**: 공개 화합물 활성 데이터베이스
 - **BindingDB**: 단백질-화합물 결합 데이터베이스
+- **Descriptor Selection**: `descriptor_selection.csv` - 각 데이터셋(5x, 10x, 20x, 2D/3D)별 선택된 descriptor 리스트
 - **저장 위치**: 
   - `saved_data/IC50/`: 수집된 원본 데이터
   - `raw/FewshotSet/`: Few-shot learning용 데이터
   - `raw/TransferSet/`: Transfer learning용 데이터
   - `models_trained/`: 학습된 모델 (.pkl 파일)
   - `shap_outputs/`: SHAP 분석 결과 플롯
+  - `descriptor_selection.csv`: 데이터셋별 descriptor 선택 정보
 
 ### 데이터 플로우
 
@@ -114,16 +166,32 @@ GET /api/models/list
    ↓
 2. ChEMBL/BindingDB 데이터 수집 (IC50 기준)
    ↓
-3. SMILES → Fingerprint/Descriptor 변환
+3. SMILES → Fingerprint (MACCS/ECFP4/MORGAN) 변환
    ↓
-4. 데이터 정제 (결측값, 낮은 분산, 높은 상관관계 제거)
+4. descriptor_selection.csv에서 선택된 Descriptor 추출
    ↓
-5. ML 모델 학습 (TabPFN/AutoML)
+5. Fingerprint + Descriptor 결합 (예: MACCS 167비트 + 16 descriptor = 183 특성)
    ↓
-6. 예측 및 SHAP 분석
+6. 데이터 정제 (결측값, 이상값 처리)
    ↓
-7. 중요 화학 특성 추출
+7. ML 모델 학습 (TabPFN/XGBoost/AutoML)
+   ↓
+8. 예측 및 SHAP 분석
+   ↓
+9. 중요 화학 특성 추출
 ```
+
+### Descriptor Selection 방식
+
+`descriptor_selection.csv` 파일은 각 데이터셋 조합별로 최적화된 descriptor 리스트를 포함합니다:
+
+- `descriptors_filtered_FTO_training_5x_ignore3D_True.csv`: Transfer Learning 5x 2D descriptor
+- `descriptors_filtered_FTO_training_5x_ignore3D_False.csv`: Transfer Learning 5x 3D descriptor
+- `descriptors_filtered_FTO_training_10x_ignore3D_True.csv`: Transfer Learning 10x 2D descriptor
+- `descriptors_filtered_FTO_training_10x_ignore3D_False.csv`: Transfer Learning 10x 3D descriptor
+- (각 조합별 20x 데이터셋도 동일하게 존재)
+
+**API 사용 시 자동으로 적절한 descriptor 세트를 선택하여 적용합니다.**
 
 ## 기술 스택
 
@@ -286,7 +354,13 @@ webapp/
 
 - **플랫폼**: Sandbox Environment (개발/테스트용)
 - **상태**: ✅ 활성 (Active)
-- **마지막 업데이트**: 2026-02-26
+- **마지막 업데이트**: 2026-03-04
+- **주요 개선사항**:
+  - ✅ descriptor_selection.csv 기반 특성 선택 시스템 구축
+  - ✅ Fingerprint + Descriptor 조합 API 완성
+  - ✅ MACCS/ECFP4/MORGAN 모든 fingerprint 타입 지원
+  - ✅ 2D/3D descriptor 및 5x/10x/20x 데이터셋 비율 지원
+  - ✅ 웹 UI를 통한 사용자 친화적 인터페이스 제공
 
 ## 다음 개발 단계
 

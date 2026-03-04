@@ -71,22 +71,38 @@ async def transform_features(request: DataTransformRequest):
 @router.post("/fingerprint")
 async def generate_fingerprint(request: FingerprintRequest):
     """
-    SMILES 리스트를 Fingerprint로 변환
+    SMILES 리스트를 Fingerprint + 선택된 Descriptor로 변환
+    (원본 연구 코드 방식: MACCS 167개 + 선택된 Descriptor 10~16개)
     
     - **smiles_list**: SMILES 문자열 리스트
-    - **fp_type**: ECFP4, MACCS, MORGAN
+    - **fp_type**: ECFP4 (1024비트), MACCS (167비트), MORGAN (1024비트)
+    - **dataset_ratio**: 5x, 10x, 20x (descriptor 선택에 영향)
+    - **ignore3D**: True (2D descriptor만), False (3D descriptor 포함)
+    
+    예시:
+    - MACCS + 5x + 2D: 167 (MACCS) + 16개 (descriptor) = 183개
+    - ECFP4 + 10x + 2D: 1024 (ECFP4) + 15개 (descriptor) = 1039개
     """
     try:
-        fingerprints = feature_service.transform_to_fingerprint(
+        result_df = feature_service.transform_to_fingerprint_with_descriptors(
             smiles_list=request.smiles_list,
-            fp_type=request.fp_type.value
+            fp_type=request.fp_type.value,
+            dataset_ratio=request.dataset_ratio,
+            ignore3D=request.ignore3D
         )
+        
+        fp_size = 167 if request.fp_type.value == "MACCS" else 1024
+        descriptor_count = len(result_df.columns) - fp_size
         
         return {
             "fingerprint_type": request.fp_type.value,
-            "count": len(fingerprints),
-            "fingerprint_size": fingerprints.shape[1],
-            "fingerprints": fingerprints.tolist()
+            "dataset_ratio": request.dataset_ratio,
+            "ignore3D": request.ignore3D,
+            "count": len(result_df),
+            "fingerprint_size": fp_size,
+            "descriptor_count": descriptor_count,
+            "total_feature_count": len(result_df.columns),
+            "features_preview": result_df.head(3).to_dict('records') if len(result_df) > 0 else []
         }
     
     except Exception as e:

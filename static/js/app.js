@@ -109,6 +109,8 @@ async function transformFeatures() {
     const proteinName = document.getElementById('protein-name').value;
     const fingerprintType = document.getElementById('fingerprint-type').value;
     const datasetType = document.getElementById('dataset-type').value;
+    const datasetRatio = document.getElementById('dataset-ratio').value;
+    const ignore3D = document.getElementById('ignore3d').value === 'true';
     const posThreshold = parseFloat(document.getElementById('pos-threshold').value);
     const negThreshold = parseFloat(document.getElementById('neg-threshold').value);
     
@@ -125,11 +127,18 @@ async function transformFeatures() {
             protein_name: proteinName,
             fingerprint_type: fingerprintType,
             dataset_type: datasetType,
+            dataset_ratio: datasetRatio,
+            ignore3D: ignore3D,
             pos_threshold: posThreshold,
             neg_threshold: negThreshold
         });
         
         const data = response.data;
+        
+        // Fingerprint 크기 계산
+        const fpSize = fingerprintType === 'MACCS' ? 167 : 1024;
+        const descriptorCount = data.feature_count - fpSize;
+        
         resultDiv.innerHTML = `
             <div class="alert alert-success">
                 <i class="fas fa-check-circle mr-2"></i>
@@ -137,11 +146,15 @@ async function transformFeatures() {
             </div>
             <div class="mt-4 space-y-2">
                 <p><strong>단백질:</strong> ${data.protein_name}</p>
-                <p><strong>데이터셋 타입:</strong> ${data.dataset_type}</p>
+                <p><strong>Fingerprint:</strong> ${fingerprintType} (${fpSize}비트)</p>
+                <p><strong>데이터셋:</strong> ${datasetType} / ${datasetRatio} / ${ignore3D ? '2D' : '3D'}</p>
                 <p><strong>총 화합물:</strong> ${data.total_compounds}개</p>
                 <p><strong>활성 화합물:</strong> ${data.active_compounds}개</p>
                 <p><strong>비활성 화합물:</strong> ${data.inactive_compounds}개</p>
-                <p><strong>특성 수:</strong> ${data.feature_count}개</p>
+                <p class="text-lg font-bold text-indigo-600">
+                    <strong>총 특성 수:</strong> ${data.feature_count}개 
+                    (Fingerprint ${fpSize} + Descriptor ${descriptorCount})
+                </p>
             </div>
         `;
         

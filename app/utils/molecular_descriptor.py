@@ -179,31 +179,43 @@ def calc_specific_descriptors(smiles_list, descriptor_list=None, leave_cores=4, 
     if len(mols) == 0:
         return pd.DataFrame()
     
-    if descriptor_list is None:
-        calc = Calculator(descriptors, ignore_3D=ignore3D)
-    else:
-        selected_descriptors = []
-        all_descriptors = descriptors.all()
-        
-        for desc_name in descriptor_list:
-            for desc in all_descriptors:
-                if str(desc) == desc_name or desc.__class__.__name__ == desc_name:
-                    selected_descriptors.append(desc)
-                    break
-        
-        if not selected_descriptors:
-            print("선택된 descriptor가 없습니다.")
-            return pd.DataFrame()
-            
-        calc = Calculator(selected_descriptors, ignore_3D=ignore3D)
+    # UPDATED: 모든 descriptor를 계산한 후, 선택된 컬럼만 필터링
+    calc = Calculator(descriptors, ignore_3D=ignore3D)
     
     total_cores = multiprocessing.cpu_count()
     nproc = max(1, total_cores - leave_cores)
     print(f"Using {nproc}/{total_cores} cores")
     
-    desc_df = calc.pandas(mols, nproc=nproc)
+    print(f"DEBUG: About to call calc.pandas with {len(mols)} molecules")
+    
+    try:
+        desc_df = calc.pandas(mols, nproc=nproc)
+        print(f"DEBUG: calc.pandas succeeded, result shape: {desc_df.shape}")
+        
+        # descriptor_list가 제공되면 해당 컬럼만 선택
+        if descriptor_list:
+            available_cols = [col for col in descriptor_list if col in desc_df.columns]
+            missing_cols = [col for col in descriptor_list if col not in desc_df.columns]
+            
+            if missing_cols:
+                print(f"WARNING: {len(missing_cols)} descriptors not found: {missing_cols[:5]}...")
+            
+            if available_cols:
+                desc_df = desc_df[available_cols]
+                print(f"Selected {len(available_cols)}/{len(descriptor_list)} descriptors")
+            else:
+                print("ERROR: None of the requested descriptors found!")
+                desc_df = pd.DataFrame()
+                
+    except Exception as e:
+        print(f"ERROR in calc.pandas: {e}")
+        print(f"ERROR type: {type(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     valid_smiles = [smiles_list[i] for i in valid_indices]
-    desc_df.insert(0, 'canonical_SMILES', valid_smiles)
+    if not desc_df.empty:
+        desc_df.insert(0, 'canonical_SMILES', valid_smiles)
     
     return desc_df
