@@ -22,61 +22,84 @@ async def transform_features(request: DataTransformRequest):
     - **neg_threshold**: 비활성 화합물 IC50 임계값 (nM)
     """
     try:
-        # 수집된 데이터 로드
-        data_path = f"saved_data/IC50/{request.protein_name}_summary.xlsx"
-        
-        if not os.path.exists(data_path):
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Data not found for protein: {request.protein_name}. Please collect data first."
-            )
-        
-        chembl_df = pd.read_excel(data_path, sheet_name='ChemBL')
-        
-        try:
-            bindingdb_df = pd.read_excel(data_path, sheet_name='BindingDB')
-        except:
-            bindingdb_df = pd.DataFrame()
-        
-        # 1. 기본 데이터 변환 (SMILES + potency)
-        result_df = feature_service.prepare_training_data(
-            chembl_df=chembl_df,
-            bindingdb_df=bindingdb_df,
-            protein_name=request.protein_name,
-            dataset_type=request.dataset_type,
-            pos_threshold=request.pos_threshold,
-            neg_threshold=request.neg_threshold
-        )
-        
-        if result_df is None or len(result_df) == 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Failed to transform data. Check input data quality."
-            )
-        
-        # 2. Fingerprint + Descriptor 변환 (원본 연구 방식)
-        # 컬럼명 확인 (SMILES 또는 canonical_SMILES)
-        smiles_col = 'canonical_SMILES' if 'canonical_SMILES' in result_df.columns else 'SMILES'
-        smiles_list = result_df[smiles_col].tolist()
-        
-        # Fingerprint + Descriptor 생성
-        features_df = feature_service.transform_to_fingerprint_with_descriptors(
-            smiles_list=smiles_list,
-            fp_type=request.fingerprint_type.value,
-            dataset_ratio=request.dataset_ratio,
-            ignore3D=request.ignore3D
-        )
-        
-        # SMILES, Y(label), potency 컬럼 추가
-        features_df['SMILES'] = result_df[smiles_col].values
-        features_df['Y'] = result_df['Y'].values
-        features_df['potency'] = result_df['potency'].values
-        
-        # 저장 (단일 Dataset 폴더 사용)
+        # 캐시 확인: 이미 변환된 데이터가 있으면 재사용
         output_folder = "raw/Dataset"
         os.makedirs(output_folder, exist_ok=True)
         output_path = f"{output_folder}/{request.protein_name}.csv"
-        features_df.to_csv(output_path, index=False)
+        
+        # 캐시가 있고, 설정이 동일하면 재사용
+        cache_valid = False
+        if os.path.exists(output_path):
+            try:
+                cached_df = pd.read_csv(output_path)
+                # Feature count로 설정 확인
+                feature_count = len(cached_df.columns) - 3  # SMILES, Y, potency 제외
+                expected_fp = 167 if request.fingerprint_type.value == "MACCS" else 1024
+                
+                # 동일한 설정이면 캐시 사용
+                if abs(feature_count - expected_fp) < 100:  # descriptor 범위 고려
+                    cache_valid = True
+                    features_df = cached_df
+                    print(f"✅ Using cached data: {output_path} ({feature_count} features)")
+            except:
+                pass
+        
+        if not cache_valid:
+            # 수집된 데이터 로드
+            data_path = f"saved_data/IC50/{request.protein_name}_summary.xlsx"
+            
+            if not os.path.exists(data_path):
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Data not found for protein: {request.protein_name}. Please collect data first."
+                )
+            
+            chembl_df = pd.read_excel(data_path, sheet_name='ChemBL')
+            
+            try:
+                bindingdb_df = pd.read_excel(data_path, sheet_name='BindingDB')
+            except:
+                bindingdb_df = pd.DataFrame()
+            
+            # 1. 기본 데이터 변환 (SMILES + potency)
+            result_df = feature_service.prepare_training_data(
+                chembl_df=chembl_df,
+                bindingdb_df=bindingdb_df,
+                protein_name=request.protein_name,
+                dataset_type=request.dataset_type,
+                pos_threshold=request.pos_threshold,
+                neg_threshold=request.neg_threshold
+            )
+            
+            if result_df is None or len(result_df) == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Failed to transform data. Check input data quality."
+                )
+            
+            # 2. Fingerprint + Descriptor 변환 (원본 연구 방식)
+            # 컬럼명 확인 (SMILES 또는 canonical_SMILES)
+            smiles_col = 'canonical_SMILES' if 'canonical_SMILES' in result_df.columns else 'SMILES'
+            smiles_list = result_df[smiles_col].tolist()
+            
+            print(f"⏳ Computing features for {len(smiles_list)} compounds (this may take 1-2 minutes)...")
+            
+            # Fingerprint + Descriptor 생성
+            features_df = feature_service.transform_to_fingerprint_with_descriptors(
+                smiles_list=smiles_list,
+                fp_type=request.fingerprint_type.value,
+                dataset_ratio=request.dataset_ratio,
+                ignore3D=request.ignore3D
+            )
+            
+            # SMILES, Y(label), potency 컬럼 추가
+            features_df['SMILES'] = result_df[smiles_col].values
+            features_df['Y'] = result_df['Y'].values
+            features_df['potency'] = result_df['potency'].values
+            
+            # 저장
+            features_df.to_csv(output_path, index=False)
+            print(f"✅ Saved to cache: {output_path}")
         
         # Fingerprint 크기 계산
         fp_size = 167 if request.fingerprint_type == "MACCS" else 1024

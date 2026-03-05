@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'pci-api',
       script: 'uvicorn',
-      args: 'app.main:app --host 0.0.0.0 --port 3000 --reload',
+      args: 'app.main:app --host 0.0.0.0 --port 3000 --reload --timeout-keep-alive 300',
       cwd: '/home/user/webapp',
       interpreter: 'python3',
       env: {
