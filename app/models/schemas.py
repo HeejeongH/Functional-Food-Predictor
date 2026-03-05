@@ -38,7 +38,7 @@ class DataTransformRequest(BaseModel):
     protein_name: str = Field(..., description="단백질 이름")
     fingerprint_type: Optional[FingerprintType] = Field(FingerprintType.MACCS, description="Fingerprint 타입")
     descriptor_type: Optional[DescriptorType] = Field(None, description="Descriptor 타입")
-    dataset_type: str = Field(default="transfer", description="fewshot 또는 transfer")
+    dataset_type: str = Field(default="dataset", description="데이터셋 타입 (단일 dataset 사용)")
     dataset_ratio: str = Field(default="5x", description="데이터셋 비율 (5x, 10x, 20x)")
     ignore3D: bool = Field(default=True, description="3D descriptor 무시 여부 (True=2D만 사용)")
     pos_threshold: float = Field(default=10000, description="활성 임계값 (nM)")

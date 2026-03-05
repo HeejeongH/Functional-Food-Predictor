@@ -15,7 +15,7 @@ async def transform_features(request: DataTransformRequest):
     
     - **protein_name**: 단백질 이름
     - **fingerprint_type**: ECFP4, MACCS, MORGAN
-    - **dataset_type**: fewshot 또는 transfer
+    - **dataset_type**: 데이터셋 타입 (단일 dataset 사용)
     - **dataset_ratio**: 5x, 10x, 20x
     - **ignore3D**: True (2D만), False (3D 포함)
     - **pos_threshold**: 활성 화합물 IC50 임계값 (nM)
@@ -72,8 +72,8 @@ async def transform_features(request: DataTransformRequest):
         features_df['Y'] = result_df['Y'].values
         features_df['potency'] = result_df['potency'].values
         
-        # 저장
-        output_folder = "raw/TransferSet" if request.dataset_type == "transfer" else "raw/FewshotSet"
+        # 저장 (단일 Dataset 폴더 사용)
+        output_folder = "raw/Dataset"
         os.makedirs(output_folder, exist_ok=True)
         output_path = f"{output_folder}/{request.protein_name}.csv"
         features_df.to_csv(output_path, index=False)

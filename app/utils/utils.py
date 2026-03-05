@@ -321,18 +321,12 @@ def prepare_protein_data(chembl_df, BDB_df, protein_name, output_folder, pos_thr
     
     return result_df
 
-def convert_protein_data(chembl_df, BDB_df, protein_name, dataset_type="fewshot", pos_threshold=10000, neg_threshold=20000):
-    if dataset_type.lower() == "fewshot":
-        output_folder = "raw/FewshotSet"
-        print(f"{protein_name} 데이터를 Few-shot learning용으로 변환 중... (IC50 임계값: pos =< {pos_threshold}nM / neg => {neg_threshold}nM)")
-    elif dataset_type.lower() == "transfer":
-        output_folder = "raw/TransferSet"
-        print(f"{protein_name} 데이터를 Transfer learning용으로 변환 중... (IC50 임계값: pos =< {pos_threshold}nM / neg => {neg_threshold}nM)")
-    else:
-        print("오류: dataset_type은 'fewshot' 또는 'transfer'여야 합니다.")
-        return None
+def convert_protein_data(chembl_df, BDB_df, protein_name, dataset_type="dataset", pos_threshold=10000, neg_threshold=20000):
+    # 단일 데이터셋 폴더 사용 (Transfer/Fewshot 구분 제거)
+    output_folder = "raw/Dataset"
+    print(f"{protein_name} 데이터 변환 중... (IC50 임계값: pos =< {pos_threshold}nM / neg => {neg_threshold}nM)")
     
-    result_df = prepare_protein_data(chembl_df, BDB_df, protein_name, output_folder, pos_threshold=10000, neg_threshold=20000)
+    result_df = prepare_protein_data(chembl_df, BDB_df, protein_name, output_folder, pos_threshold=pos_threshold, neg_threshold=neg_threshold)
     
     if result_df is not None:
         print(f"변환 완료! {output_folder}/{protein_name}.csv")
