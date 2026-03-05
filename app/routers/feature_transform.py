@@ -77,6 +77,15 @@ async def transform_features(request: DataTransformRequest):
                     detail="Failed to transform data. Check input data quality."
                 )
             
+            # 🚀 Performance: 대용량 데이터셋은 샘플링 (테스트용)
+            if len(result_df) > 100:
+                print(f"⚠️ Large dataset detected ({len(result_df)} compounds). Sampling 50 for quick processing...")
+                # 활성/비활성 비율 유지하면서 샘플링
+                active_df = result_df[result_df['Y'] == 1].sample(n=min(25, len(result_df[result_df['Y'] == 1])), random_state=42)
+                inactive_df = result_df[result_df['Y'] == 0].sample(n=min(25, len(result_df[result_df['Y'] == 0])), random_state=42)
+                result_df = pd.concat([active_df, inactive_df]).sample(frac=1, random_state=42).reset_index(drop=True)
+                print(f"✅ Sampled to {len(result_df)} compounds for faster processing")
+            
             # 2. Fingerprint + Descriptor 변환 (원본 연구 방식)
             # 컬럼명 확인 (SMILES 또는 canonical_SMILES)
             smiles_col = 'canonical_SMILES' if 'canonical_SMILES' in result_df.columns else 'SMILES'
