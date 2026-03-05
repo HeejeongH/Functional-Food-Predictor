@@ -17,7 +17,23 @@
 7. ✅ **RESTful API** - FastAPI 기반 표준 REST API
 8. ✅ **자동 문서화** - Swagger/OpenAPI 자동 생성
 9. ✅ **CORS 지원** - 프론트엔드 연동 가능
-10. ✅ **웹 인터페이스** - HTML/CSS/JavaScript 기반 사용자 친화적 UI
+10. ✅ **통합 워크플로우 UI** - 단계별 체크박스 선택 및 한번에 실행
+11. ✅ **단일 데이터셋 구조** - Transfer/Fewshot 구분 제거, 모델 선택으로 학습 방식 결정
+
+### 최근 업데이트 (2026-03-05)
+
+**🎯 워크플로우 개선**
+- Step 1: 데이터 수집 → 단백질 목록 확인 버튼
+- Step 2-5: 수집된 단백질만 드롭다운 선택 가능
+- Step 3: 모델 학습 후 자동 저장 및 "AUTO" 선택
+- Step 4-5: 방금 학습한 모델 자동 사용 (또는 기존 모델 선택)
+
+**📁 데이터셋 구조 단순화**
+- `raw/Dataset/` - 모든 데이터를 단일 폴더에 저장
+- Transfer Learning vs Few-shot Learning 구분 제거
+- 학습 방식은 모델 선택으로 결정:
+  - **TabPFN** → Few-shot Learning (소량 데이터 특화)
+  - **XGBoost/LightGBM/CatBoost** → 일반 학습
 
 ### 아직 구현되지 않은 기능
 
