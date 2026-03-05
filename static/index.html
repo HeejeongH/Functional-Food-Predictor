@@ -177,18 +177,32 @@
                     </div>
 
                     <div class="form-grid">
-                        <!-- Protein Name -->
-                        <div class="form-group">
-                            <label class="form-label required">단백질 이름</label>
-                            <input type="text" id="protein-name" class="form-input" placeholder="예: FTO, PDE4, PDE5">
-                            <span class="form-hint">모든 단계에서 사용됩니다</span>
+                        <!-- Step 1: Collect proteins -->
+                        <div class="form-group" style="grid-column: 1 / -1;" id="step1-config">
+                            <label class="form-label">Step 1: 수집할 단백질 리스트</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="target-genes" class="form-input" placeholder="예: PDE4, PDE5, FTO (쉼표로 구분)" style="flex: 1;">
+                                <button type="button" onclick="collectData()" class="btn btn-primary" id="collect-btn">
+                                    <i class="fas fa-download"></i>
+                                    데이터 수집
+                                </button>
+                            </div>
+                            <span class="form-hint">먼저 단백질 데이터를 수집하세요</span>
+                            <div id="collected-proteins" class="hidden" style="margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: var(--radius-md);">
+                                <div style="font-size: 0.875rem; font-weight: 600; color: var(--success); margin-bottom: 0.5rem;">
+                                    <i class="fas fa-check-circle"></i> 수집 완료
+                                </div>
+                                <div id="collected-proteins-list" style="font-size: 0.875rem; color: var(--gray-700);"></div>
+                            </div>
                         </div>
 
-                        <!-- Target Genes -->
-                        <div class="form-group">
-                            <label class="form-label">타겟 유전자 (Step 1)</label>
-                            <input type="text" id="target-genes" class="form-input" placeholder="예: PDE4, PDE5, HDAC1">
-                            <span class="form-hint">쉼표로 구분</span>
+                        <!-- Step 2-5: Select protein -->
+                        <div class="form-group" id="step2-config">
+                            <label class="form-label">Step 2-5: 분석할 단백질 선택</label>
+                            <select id="protein-name" class="form-select" disabled>
+                                <option value="">먼저 데이터를 수집해주세요</option>
+                            </select>
+                            <span class="form-hint">수집된 단백질 중 선택</span>
                         </div>
 
                         <!-- Fingerprint Type -->
@@ -256,16 +270,12 @@
 
                         <!-- Model Selection -->
                         <div class="form-group" style="grid-column: 1 / -1;">
-                            <label class="form-label">사용할 모델 (Step 4, 5)</label>
-                            <div style="display: flex; gap: 0.5rem;">
-                                <select id="model-select" class="form-select" style="flex: 1;">
-                                    <option value="">모델을 먼저 학습해주세요</option>
-                                </select>
-                                <button type="button" onclick="loadModelList()" class="btn btn-secondary">
-                                    <i class="fas fa-sync-alt"></i>
-                                    새로고침
-                                </button>
-                            </div>
+                            <label class="form-label">Step 4-5: 사용할 모델</label>
+                            <select id="model-select" class="form-select">
+                                <option value="AUTO">자동 (방금 학습한 모델 사용)</option>
+                                <option value="" disabled>--- 또는 기존 모델 선택 ---</option>
+                            </select>
+                            <span class="form-hint">Step 3을 선택하면 자동으로 새 모델 사용</span>
                         </div>
                     </div>
 

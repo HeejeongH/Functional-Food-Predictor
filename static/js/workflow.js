@@ -1,6 +1,61 @@
 // API Base URL
 const API_BASE_URL = '';
 
+// 전역 변수
+let collectedProteins = [];
+let lastTrainedModel = null;
+
+// 데이터 수집 (Step 1 사전 실행)
+async function collectData() {
+    const targetGenes = document.getElementById('target-genes').value.trim();
+    
+    if (!targetGenes) {
+        alert('수집할 단백질 리스트를 입력해주세요.');
+        return;
+    }
+    
+    const btn = document.getElementById('collect-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 수집 중...';
+    
+    try {
+        const targetList = targetGenes.split(',').map(s => s.trim()).filter(s => s);
+        
+        const response = await axios.post(`${API_BASE_URL}/api/data/collect`, {
+            target_list: targetList,
+            standard_type: 'IC50'
+        });
+        
+        // 수집된 단백질 저장
+        collectedProteins = targetList;
+        
+        // UI 업데이트
+        document.getElementById('collected-proteins').classList.remove('hidden');
+        document.getElementById('collected-proteins-list').innerHTML = 
+            `수집된 단백질: <strong>${collectedProteins.join(', ')}</strong> (${response.data.total_compounds}개 화합물)`;
+        
+        // 단백질 선택 드롭다운 활성화
+        const proteinSelect = document.getElementById('protein-name');
+        proteinSelect.disabled = false;
+        proteinSelect.innerHTML = collectedProteins.map(p => 
+            `<option value="${p}">${p}</option>`
+        ).join('');
+        
+        // Step 1 체크박스 자동 선택
+        document.getElementById('step1').checked = true;
+        updateStepCard(1);
+        updateStepStatus('step1', 'success');
+        
+        alert('데이터 수집 완료! 이제 단백질을 선택하고 다음 단계를 진행하세요.');
+        
+    } catch (error) {
+        alert('데이터 수집 실패: ' + (error.response?.data?.detail || error.message));
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-download"></i> 데이터 수집';
+    }
+}
+
 // 단계 선택 토글
 function toggleStep(stepNum) {
     const checkbox = document.getElementById(`step${stepNum}`);
@@ -29,9 +84,8 @@ function updateStepCard(stepNum) {
 
 // 워크플로우 실행
 async function executeWorkflow() {
-    // 선택된 단계 확인
+    // 선택된 단계 확인 (Step 1 제외 - 사전에 수집해야 함)
     const steps = [
-        { id: 'step1', name: '데이터 수집', fn: executeDataCollection },
         { id: 'step2', name: '특성 변환', fn: executeFeatureTransform },
         { id: 'step3', name: '모델 학습', fn: executeModelTraining },
         { id: 'step4', name: '예측', fn: executePrediction },
@@ -46,19 +100,10 @@ async function executeWorkflow() {
     }
 
     // 유효성 검사
-    const proteinName = document.getElementById('protein-name').value.trim();
+    const proteinName = document.getElementById('protein-name').value;
     if (!proteinName) {
-        alert('단백질 이름을 입력해주세요.');
+        alert('먼저 데이터를 수집하고 단백질을 선택해주세요.');
         return;
-    }
-
-    // Step 1 선택 시 타겟 유전자 필수
-    if (selectedSteps.find(s => s.id === 'step1')) {
-        const targetGenes = document.getElementById('target-genes').value.trim();
-        if (!targetGenes) {
-            alert('데이터 수집을 위해 타겟 유전자 리스트를 입력해주세요.');
-            return;
-        }
     }
 
     // Step 4 선택 시 SMILES 필수
@@ -242,24 +287,9 @@ function formatValue(key, value) {
     return value;
 }
 
-// Step 1: 데이터 수집
-async function executeDataCollection() {
-    const targetGenes = document.getElementById('target-genes').value
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s);
-    
-    const response = await axios.post(`${API_BASE_URL}/api/data/collect`, {
-        target_list: targetGenes,
-        standard_type: 'IC50'
-    });
-    
-    return response.data;
-}
-
 // Step 2: 특성 변환
 async function executeFeatureTransform() {
-    const proteinName = document.getElementById('protein-name').value.trim();
+    const proteinName = document.getElementById('protein-name').value;
     const fingerprintType = document.getElementById('fingerprint-type').value;
     const datasetRatio = document.getElementById('dataset-ratio').value;
     const ignore3D = document.getElementById('ignore3d').value === 'true';
@@ -281,7 +311,7 @@ async function executeFeatureTransform() {
 
 // Step 3: 모델 학습
 async function executeModelTraining() {
-    const proteinName = document.getElementById('protein-name').value.trim();
+    const proteinName = document.getElementById('protein-name').value;
     const modelType = document.getElementById('model-type').value;
     
     const response = await axios.post(`${API_BASE_URL}/api/models/train`, {
@@ -292,8 +322,14 @@ async function executeModelTraining() {
         random_state: 42
     });
     
-    // 모델 목록 새로고침
+    // 학습한 모델 ID 저장
+    lastTrainedModel = response.data.model_id;
+    
+    // 모델 선택 드롭다운 업데이트
     await loadModelList();
+    
+    // AUTO 선택 (방금 학습한 모델 사용)
+    document.getElementById('model-select').value = 'AUTO';
     
     return response.data;
 }
@@ -302,10 +338,17 @@ async function executeModelTraining() {
 async function executePrediction() {
     const smilesInput = document.getElementById('smiles-input').value.trim();
     const smilesList = smilesInput.split('\n').map(s => s.trim()).filter(s => s);
-    const modelId = document.getElementById('model-select').value;
     
-    if (!modelId) {
-        throw new Error('모델을 선택해주세요');
+    // 모델 선택
+    let modelId = document.getElementById('model-select').value;
+    
+    // AUTO이거나 Step 3에서 방금 학습한 경우
+    if (modelId === 'AUTO' || !modelId) {
+        if (lastTrainedModel) {
+            modelId = lastTrainedModel;
+        } else {
+            throw new Error('사용할 모델이 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택하세요.');
+        }
     }
     
     const response = await axios.post(`${API_BASE_URL}/api/models/predict`, {
@@ -319,10 +362,16 @@ async function executePrediction() {
 
 // Step 5: SHAP 분석
 async function executeSHAPAnalysis() {
-    const modelId = document.getElementById('model-select').value;
+    // 모델 선택
+    let modelId = document.getElementById('model-select').value;
     
-    if (!modelId) {
-        throw new Error('모델을 선택해주세요');
+    // AUTO이거나 Step 3에서 방금 학습한 경우
+    if (modelId === 'AUTO' || !modelId) {
+        if (lastTrainedModel) {
+            modelId = lastTrainedModel;
+        } else {
+            throw new Error('사용할 모델이 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택하세요.');
+        }
     }
     
     const response = await axios.post(`${API_BASE_URL}/api/shap/analyze`, {
@@ -341,9 +390,24 @@ async function loadModelList() {
         const models = response.data.models || [];
         
         const select = document.getElementById('model-select');
-        select.innerHTML = models.length === 0 
-            ? '<option value="">학습된 모델이 없습니다</option>'
-            : models.map(m => `<option value="${m}">${m}</option>`).join('');
+        
+        // 기본 옵션: AUTO (방금 학습한 모델)
+        let options = '<option value="AUTO">자동 (방금 학습한 모델 사용)</option>';
+        
+        if (models.length > 0) {
+            options += '<option value="" disabled>--- 또는 기존 모델 선택 ---</option>';
+            options += models.map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+        
+        select.innerHTML = options;
+        
+        // 방금 학습한 모델이 있으면 하이라이트
+        if (lastTrainedModel) {
+            const modelOption = Array.from(select.options).find(opt => opt.value === lastTrainedModel);
+            if (modelOption) {
+                modelOption.text = `${modelOption.text} ✅ (방금 학습됨)`;
+            }
+        }
         
     } catch (error) {
         console.error('Failed to load models:', error);
