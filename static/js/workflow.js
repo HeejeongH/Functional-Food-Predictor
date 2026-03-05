@@ -1,6 +1,32 @@
 // API Base URL
 const API_BASE_URL = '';
 
+// 단계 선택 토글
+function toggleStep(stepNum) {
+    const checkbox = document.getElementById(`step${stepNum}`);
+    checkbox.checked = !checkbox.checked;
+    updateStepCard(stepNum);
+}
+
+// 단계 직접 선택
+function selectStep(stepNum) {
+    const checkbox = document.getElementById(`step${stepNum}`);
+    checkbox.checked = true;
+    updateStepCard(stepNum);
+}
+
+// 단계 카드 업데이트
+function updateStepCard(stepNum) {
+    const checkbox = document.getElementById(`step${stepNum}`);
+    const card = checkbox.closest('.step-card');
+    
+    if (checkbox.checked) {
+        card.classList.add('selected');
+    } else {
+        card.classList.remove('selected');
+    }
+}
+
 // 워크플로우 실행
 async function executeWorkflow() {
     // 선택된 단계 확인
@@ -133,15 +159,25 @@ function updateProgressItem(item, status, message) {
 
 // 단계 상태 업데이트
 function updateStepStatus(stepId, status) {
-    const statusElement = document.getElementById(`status${stepId.replace('step', '')}`);
+    const stepNum = stepId.replace('step', '');
+    const statusElement = document.getElementById(`status${stepNum}`);
     statusElement.className = `step-status ${status}`;
     
     let iconClass = 'fa-circle';
-    if (status === 'running') iconClass = 'fa-spinner fa-spin';
-    if (status === 'success') iconClass = 'fa-check-circle';
-    if (status === 'error') iconClass = 'fa-times-circle';
+    let text = '대기중';
     
-    statusElement.innerHTML = `<i class="fas ${iconClass}"></i>`;
+    if (status === 'running') {
+        iconClass = 'fa-spinner fa-spin';
+        text = '실행중';
+    } else if (status === 'success') {
+        iconClass = 'fa-check-circle';
+        text = '완료';
+    } else if (status === 'error') {
+        iconClass = 'fa-times-circle';
+        text = '실패';
+    }
+    
+    statusElement.innerHTML = `<i class="fas ${iconClass}"></i><span>${text}</span>`;
 }
 
 // 결과 카드 생성
@@ -318,13 +354,16 @@ async function loadModelList() {
 document.addEventListener('DOMContentLoaded', function() {
     loadModelList();
     
-    // 체크박스 변경 시 상태 초기화
-    document.querySelectorAll('.step-checkbox').forEach(checkbox => {
+    // 체크박스 변경 시 카드 스타일 업데이트
+    document.querySelectorAll('.step-checkbox').forEach((checkbox, index) => {
         checkbox.addEventListener('change', function() {
+            updateStepCard(index + 1);
+            // 상태 초기화
             const stepId = this.id;
-            const statusElement = document.getElementById(`status${stepId.replace('step', '')}`);
+            const stepNum = stepId.replace('step', '');
+            const statusElement = document.getElementById(`status${stepNum}`);
             statusElement.className = 'step-status pending';
-            statusElement.innerHTML = '<i class="fas fa-circle text-gray-300"></i>';
+            statusElement.innerHTML = '<i class="fas fa-circle"></i><span>대기중</span>';
         });
     });
 });
