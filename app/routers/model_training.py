@@ -27,11 +27,9 @@ async def train_model(request: ModelTrainRequest):
     - **random_state**: 랜덤 시드
     """
     try:
-        # 데이터 경로 찾기
+        # 데이터 경로 찾기 (단일 Dataset 폴더)
         if request.feature_type == "fingerprint":
-            data_path = f"raw/TransferSet/{request.protein_name}.csv"
-            if not os.path.exists(data_path):
-                data_path = f"raw/FewshotSet/{request.protein_name}.csv"
+            data_path = f"raw/Dataset/{request.protein_name}.csv"
         else:
             data_path = f"raw/descriptors/{request.protein_name}_descriptors.csv"
         
@@ -41,13 +39,29 @@ async def train_model(request: ModelTrainRequest):
                 detail=f"Training data not found: {data_path}. Please transform features first."
             )
         
-        # 모델 학습
+        # CSV에서 학습 메타데이터 추출 (fingerprint_type, dataset_ratio, ignore3D)
+        import pandas as pd
+        df = pd.read_csv(data_path)
+        
+        # Feature count로 fingerprint 타입 추정
+        feature_count = len(df.columns) - 3  # SMILES, Y, potency 제외
+        if feature_count <= 200:  # MACCS (167) + descriptors
+            fingerprint_type = "MACCS"
+        elif feature_count <= 1100:  # ECFP4/MORGAN (1024) + descriptors
+            fingerprint_type = "ECFP4"
+        else:
+            fingerprint_type = "ECFP4"
+        
+        # 모델 학습 시 메타데이터 전달
         model_id, metrics = model_service.train_model(
             data_path=data_path,
             model_type=request.model_type,
             protein_name=request.protein_name,
             test_size=request.test_size,
-            random_state=request.random_state
+            random_state=request.random_state,
+            fingerprint_type=fingerprint_type,
+            dataset_ratio="20x",  # 기본값
+            ignore3D=True  # 기본값
         )
         
         return ModelTrainResponse(
@@ -78,12 +92,21 @@ async def predict(request: PredictionRequest):
         # 모델 로드
         model_info = model_service.load_model(request.model_id)
         
-        # 특성 변환
+        # 모델에 저장된 메타데이터로 동일한 특성 생성
         if request.feature_type == "fingerprint":
-            X = feature_service.transform_to_fingerprint(
+            # 모델 메타데이터 사용
+            fp_type = model_info.get('fingerprint_type', 'ECFP4')
+            dataset_ratio = model_info.get('dataset_ratio', '20x')
+            ignore3D = model_info.get('ignore3D', True)
+            
+            # Fingerprint + Descriptor 생성 (학습 시와 동일)
+            features_df = feature_service.transform_to_fingerprint_with_descriptors(
                 smiles_list=request.smiles_list,
-                fp_type="ECFP4"
+                fp_type=fp_type,
+                dataset_ratio=dataset_ratio,
+                ignore3D=ignore3D
             )
+            X = features_df.values
         else:
             desc_df = feature_service.transform_to_descriptors(
                 smiles_list=request.smiles_list,

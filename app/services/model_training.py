@@ -73,9 +73,10 @@ class ModelTrainingService:
             raise ValueError(f"Unknown model type: {model_type}")
     
     def train_model(self, data_path: str, model_type: str, protein_name: str,
-                   test_size: float = 0.2, random_state: int = 42):
+                   test_size: float = 0.2, random_state: int = 42,
+                   fingerprint_type: str = "ECFP4", dataset_ratio: str = "20x", ignore3D: bool = True):
         """
-        모델 학습
+        모델 학습 (fingerprint 메타데이터 저장)
         """
         # 데이터 로드
         df = pd.read_csv(data_path)
@@ -118,7 +119,10 @@ class ModelTrainingService:
             'metrics': metrics,
             'feature_count': X.shape[1],
             'train_size': len(X_train),
-            'test_size': len(X_test)
+            'test_size': len(X_test),
+            'fingerprint_type': fingerprint_type,
+            'dataset_ratio': dataset_ratio,
+            'ignore3D': ignore3D
         }
         
         with open(model_path, 'wb') as f:
@@ -145,10 +149,21 @@ class ModelTrainingService:
     
     def predict(self, model_id: str, X: np.ndarray):
         """
-        예측 수행
+        예측 수행 (feature shape 검증 포함)
         """
         model_info = self.load_model(model_id)
         model = model_info['model']
+        expected_features = model_info['feature_count']
+        
+        # Feature shape 검증
+        if X.shape[1] != expected_features:
+            raise ValueError(
+                f"Feature shape mismatch, expected: {expected_features}, got {X.shape[1]}. "
+                f"Please use the same fingerprint_type and settings as training: "
+                f"fingerprint_type={model_info.get('fingerprint_type', 'unknown')}, "
+                f"dataset_ratio={model_info.get('dataset_ratio', 'unknown')}, "
+                f"ignore3D={model_info.get('ignore3D', 'unknown')}"
+            )
         
         predictions = model.predict(X)
         
