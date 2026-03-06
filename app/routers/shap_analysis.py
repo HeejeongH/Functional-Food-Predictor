@@ -27,11 +27,9 @@ async def analyze_shap(request: SHAPAnalysisRequest):
         model = model_info['model']
         protein_name = model_info['protein_name']
         
-        # 학습 데이터 로드
+        # 학습 데이터 로드 (단일 Dataset 폴더 사용)
         if request.feature_type == "fingerprint":
-            data_path = f"raw/TransferSet/{protein_name}.csv"
-            if not os.path.exists(data_path):
-                data_path = f"raw/FewshotSet/{protein_name}.csv"
+            data_path = f"raw/Dataset/{protein_name}.csv"
         else:
             data_path = f"raw/descriptors/{protein_name}_descriptors.csv"
         
