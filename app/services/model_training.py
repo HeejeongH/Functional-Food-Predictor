@@ -34,7 +34,8 @@ class ModelTrainingService:
         if model_type == "TabPFN":
             if not TABPFN_AVAILABLE:
                 raise ValueError("TabPFN is not available. Please install tabpfn package.")
-            return TabPFNClassifier(device='cpu', N_ensemble_configurations=32)
+            # TabPFN v6.4.1+ uses simplified API
+            return TabPFNClassifier(device='cpu')
         
         elif model_type == "XGBoost":
             return XGBClassifier(
