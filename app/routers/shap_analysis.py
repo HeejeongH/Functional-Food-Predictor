@@ -20,12 +20,17 @@ async def analyze_shap(request: SHAPAnalysisRequest):
     - **model_id**: 학습된 모델 ID
     - **feature_type**: fingerprint 또는 descriptor
     - **top_n**: 상위 N개 중요 특성 (기본값: 20)
+    
+    ⚠️ 주의: SHAP 분석은 메모리를 많이 사용합니다.
+    대용량 데이터의 경우 샘플링하여 분석합니다 (최대 100 샘플).
     """
     try:
         # 모델 로드
         model_info = model_service.load_model(request.model_id)
         model = model_info['model']
         protein_name = model_info['protein_name']
+        
+        print(f"SHAP Analysis Request: model={request.model_id}, feature_type={request.feature_type}, top_n={request.top_n}")
         
         # 학습 데이터 로드 (단일 Dataset 폴더 사용)
         if request.feature_type == "fingerprint":
@@ -40,31 +45,55 @@ async def analyze_shap(request: SHAPAnalysisRequest):
             )
         
         df = pd.read_csv(data_path)
+        print(f"Loaded training data: {df.shape}")
+        
         X = df.drop(['SMILES', 'Y', 'potency'], axis=1, errors='ignore').values
         feature_names = df.drop(['SMILES', 'Y', 'potency'], axis=1, errors='ignore').columns.tolist()
         
-        # SHAP 분석
+        print(f"Features: {X.shape[1]}, Samples: {X.shape[0]}")
+        
+        # SHAP 분석 (최대 50 샘플로 축소, 메모리 부족 방지)
+        max_samples = min(50, X.shape[0])
+        print(f"Using {max_samples} samples for SHAP analysis (memory-optimized)")
+        
         shap_result = shap_service.analyze_features(
             model=model,
-            X=X[:500],  # 샘플링 (계산 속도를 위해)
+            X=X,  # 서비스 내부에서 샘플링
             feature_names=feature_names,
-            top_n=request.top_n
+            top_n=request.top_n,
+            max_samples=max_samples,
+            timeout_seconds=300  # 5분 타임아웃
         )
+        
+        print(f"SHAP analysis completed successfully")
         
         return SHAPAnalysisResponse(
             top_features=shap_result['top_features'],
             shap_values_summary={
                 'mean_abs_shap': float(abs(shap_result['shap_values']).mean()),
                 'max_abs_shap': float(abs(shap_result['shap_values']).max()),
-                'samples_analyzed': len(X[:500])
+                'samples_analyzed': len(X[:max_samples])
             },
             plot_path=shap_result['plot_path']
         )
     
     except HTTPException:
         raise
+    except ValueError as ve:
+        # SHAP 특정 에러 (타임아웃, 샘플 부족 등)
+        print(f"❌ SHAP ValueError: {str(ve)}")
+        raise HTTPException(
+            status_code=400,
+            detail=str(ve)
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"❌ SHAP analysis unexpected error:\n{error_details}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"SHAP analysis failed: {str(e)}. Try reducing sample size, using simpler model, or check server logs."
+        )
 
 @router.get("/feature-importance/{model_id}")
 async def get_feature_importance(model_id: str, top_n: int = 20):
