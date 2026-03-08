@@ -4,6 +4,57 @@
 
 **Protein-Compound Interaction (PCI) Prediction API**는 푸드테크 연구를 위한 단백질-화합물 상호작용 예측 시스템입니다. ChEMBL과 BindingDB 데이터베이스에서 타겟 유전자 데이터를 수집하고, 분자 지문(Fingerprint) 및 분자 기술자(Molecular Descriptor)로 변환하여 머신러닝 모델을 학습시킵니다. 학습된 모델로 화합물의 활성을 예측하고 SHAP 분석을 통해 중요한 화학 특성을 추출합니다.
 
+## 🐳 빠른 시작 (Docker 권장)
+
+### Docker로 실행 (추천 ⭐)
+
+```bash
+# 1. 프로젝트 다운로드 및 압축 해제
+wget https://www.genspark.ai/api/files/s/tBeIE0yv -O pci-api.tar.gz
+tar -xzf pci-api.tar.gz
+cd webapp
+
+# 2. Docker Compose로 실행 (원클릭 배포)
+docker-compose up -d
+
+# 3. 서비스 확인
+curl http://localhost:3000/health
+```
+
+**Docker 실행 후 접속:**
+- Web UI: http://localhost:3000
+- API 문서: http://localhost:3000/docs
+- Health Check: http://localhost:3000/health
+
+**Docker 관리 명령어:**
+```bash
+docker-compose logs -f          # 로그 확인
+docker-compose restart          # 재시작
+docker-compose down             # 중지 및 삭제
+docker-compose up -d --build    # 재빌드 후 실행
+```
+
+### PM2로 실행 (레거시 옵션)
+
+Docker를 사용할 수 없는 환경에서만 사용하세요.
+
+```bash
+# 1. Python 가상환경 생성
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 2. 의존성 설치
+pip install -r requirements.txt
+
+# 3. PM2로 실행
+pm2 start legacy/ecosystem.config.cjs
+
+# 4. 로그 확인
+pm2 logs pci-api --nostream
+```
+
+**주의**: PM2 방식은 RDKit/Mordred 설치 시 환경별 에러가 발생할 수 있습니다. Docker 사용을 강력히 권장합니다.
+
 ## 주요 기능
 
 ### 현재 구현된 기능
@@ -182,14 +233,34 @@ GET /api/models/list
 
 - **ChEMBL**: 공개 화합물 활성 데이터베이스
 - **BindingDB**: 단백질-화합물 결합 데이터베이스
+- **FooDB**: 식품 화합물 데이터베이스 (CSV 업로드 방식)
 - **Descriptor Selection**: `descriptor_selection.csv` - 각 데이터셋(5x, 10x, 20x, 2D/3D)별 선택된 descriptor 리스트
-- **저장 위치**: 
-  - `saved_data/IC50/`: 수집된 원본 데이터
-  - `raw/FewshotSet/`: Few-shot learning용 데이터
-  - `raw/TransferSet/`: Transfer learning용 데이터
-  - `models_trained/`: 학습된 모델 (.pkl 파일)
-  - `shap_outputs/`: SHAP 분석 결과 플롯
-  - `descriptor_selection.csv`: 데이터셋별 descriptor 선택 정보
+
+### 폴더 구조 (Docker 볼륨 마운트)
+
+```
+webapp/
+├── Dockerfile                    # Docker 빌드 설정
+├── docker-compose.yml            # 원클릭 배포 설정
+├── .dockerignore                 # Docker 빌드 최적화
+├── descriptor_selection.csv      # 필수 파일 (RO 마운트)
+├── saved_data/                   # 수집된 원본 데이터 (볼륨)
+│   ├── IC50/                     # ChEMBL/BindingDB IC50 데이터
+│   └── FooDB/                    # FooDB CSV 업로드 위치
+│       ├── 3d_conformers/        # 3D conformer 캐시 (SDF)
+│       └── preprocessed/         # 전처리된 데이터
+├── raw/                          # 변환된 특성 데이터 (볼륨)
+│   └── Dataset/                  # 통합 데이터셋
+├── models_trained/               # 학습된 모델 (볼륨)
+├── shap_outputs/                 # SHAP 분석 결과 (볼륨)
+├── food_predictions/             # FooDB 예측 결과 (볼륨)
+├── app/                          # FastAPI 애플리케이션
+└── legacy/                       # PM2 레거시 설정
+    ├── ecosystem.config.cjs
+    └── README.md
+```
+
+**중요**: Docker 볼륨 마운트 방식으로 데이터가 컨테이너 외부에 보존됩니다.
 
 ### 데이터 플로우
 
@@ -227,20 +298,67 @@ GET /api/models/list
 
 ## 기술 스택
 
-- **Framework**: FastAPI 0.133.1
+- **Deployment**: Docker + Docker Compose (권장) / PM2 (레거시)
+- **Framework**: FastAPI 0.109.0
 - **Server**: Uvicorn (ASGI)
-- **Chemistry**: RDKit 2025.9.5, Mordred 1.2.0, ChEMBL Web Client 0.10.9
+- **Chemistry**: RDKit 2023.9.4, Mordred 1.2.0, ChEMBL Web Client 0.10.8
 - **Machine Learning**: 
-  - XGBoost 3.2.0
-  - LightGBM 4.6.0
-  - CatBoost 1.2.10
-  - Scikit-learn 1.6.1
-  - **TabPFN 6.4.1** (소량 데이터 Few-shot 학습 전문, Hugging Face 인증 필요)
-- **Interpretability**: SHAP 0.50.0
-- **Data Processing**: Pandas 2.2.3, NumPy 1.26.4
-- **Process Manager**: PM2
+  - XGBoost 2.0.3
+  - LightGBM 4.3.0
+  - CatBoost 1.2.2
+  - Scikit-learn 1.4.0
+  - **TabPFN 0.1.10** (소량 데이터 Few-shot 학습 전문, Hugging Face 인증 필요)
+- **Interpretability**: SHAP 0.44.1
+- **Data Processing**: Pandas 2.2.0, NumPy 1.26.3
+- **Containerization**: Docker 20.10+, Docker Compose 2.0+
 
 ## 설치 및 실행
+
+### ⭐ Docker 방식 (권장)
+
+```bash
+# 1. 프로젝트 다운로드
+wget https://www.genspark.ai/api/files/s/tBeIE0yv -O pci-api.tar.gz
+tar -xzf pci-api.tar.gz
+cd webapp
+
+# 2. TabPFN 사용 시 환경변수 설정 (선택)
+echo "HF_TOKEN=hf_your_token_here" > .env
+
+# 3. Docker Compose 실행
+docker-compose up -d
+
+# 4. 로그 확인
+docker-compose logs -f
+
+# 5. 서비스 테스트
+curl http://localhost:3000/health
+```
+
+**Docker 리소스 조정** (docker-compose.yml 수정):
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '16.0'     # CPU 코어 수 조정
+      memory: 32G      # 메모리 조정
+```
+
+### 🔧 PM2 방식 (레거시)
+
+Docker를 사용할 수 없는 환경에서만 사용하세요. 자세한 내용은 `legacy/README.md` 참조.
+
+```bash
+# 1. Python 가상환경 생성
+python3 -m venv venv
+source venv/bin/activate
+
+# 2. 의존성 설치
+pip install -r requirements.txt
+
+# 3. PM2 실행
+pm2 start legacy/ecosystem.config.cjs
+```
 
 ### 0. TabPFN 사용 설정 (선택사항)
 
@@ -248,7 +366,18 @@ TabPFN은 Few-shot Learning에 특화된 모델로, 소량 데이터(50-1000개)
 
 **⚠️ 중요**: TabPFN을 사용하려면 Hugging Face 인증이 필요합니다.
 
-#### TabPFN 활성화 단계
+#### Docker 환경에서 TabPFN 활성화
+
+```bash
+# 1. Hugging Face 토큰 발급 (https://huggingface.co/settings/tokens)
+# 2. .env 파일 생성
+echo "HF_TOKEN=hf_xxxxxxxxxxxx" > .env
+
+# 3. Docker Compose로 실행 (자동으로 환경변수 주입)
+docker-compose up -d
+```
+
+#### PM2 환경에서 TabPFN 활성화
 
 ```bash
 # 1. TabPFN 패키지 설치 (아나콘다 가상환경 권장)

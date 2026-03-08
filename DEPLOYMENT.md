@@ -1,30 +1,51 @@
-# 🚀 PCI Prediction API - 로컬 서버 설치 가이드
+# 🚀 PCI Prediction API - 배포 가이드
 
 ## 📦 다운로드 링크
 
-**최신 프로젝트 백업 (TabPFN 지원)**: https://www.genspark.ai/api/files/s/AMOsEmIW
+**최신 프로젝트 백업 (Docker + TabPFN 지원)**: https://www.genspark.ai/api/files/s/[NEW_BACKUP_URL]
 
-**이전 버전**: https://www.genspark.ai/api/files/s/g9dAKylw
+**이전 버전 (PM2 방식)**: https://www.genspark.ai/api/files/s/AMOsEmIW
 
 이 파일을 다운로드하여 압축을 풀면 전체 프로젝트를 로컬에서 실행할 수 있습니다.
 
-**✨ 최신 버전 업데이트 (2026-03-06)**:
+**✨ 최신 버전 업데이트 (2026-03-08)**:
+- 🐳 **Docker + Docker Compose 지원** (권장 배포 방식)
+- 🔄 PM2 설정은 레거시 옵션으로 이동 (`legacy/` 폴더)
 - 🧠 TabPFN Few-shot Learning 모델 완전 지원
-- 📖 Hugging Face 인증 단계별 가이드 추가
+- 🍎 FooDB 식품 화합물 예측 기능 추가
+- 📖 Hugging Face 인증 단계별 가이드
 - 🎯 소량 데이터(50-1000개)에 최적화된 학습
-- 📊 모델 비교 표 및 사용 시나리오 추가
 
 ---
 
 ## 💻 시스템 요구사항
 
-### 최소 사양
+### Docker 방식 (권장 ⭐)
+
+#### 최소 사양
+- **OS**: Linux (Ubuntu 20.04+), macOS (Intel/M1), Windows 10/11 with WSL2
+- **Docker**: 20.10 이상
+- **Docker Compose**: 2.0 이상
+- **RAM**: 4GB 이상
+- **저장공간**: 10GB 이상
+
+#### 권장 사양
+- **OS**: Ubuntu 22.04 LTS
+- **Docker**: 최신 버전
+- **Docker Compose**: 최신 버전
+- **RAM**: 16GB 이상 (3D conformer 생성 시)
+- **CPU**: 8코어 이상
+- **저장공간**: 20GB 이상
+
+### PM2 방식 (레거시)
+
+#### 최소 사양
 - **OS**: Linux (Ubuntu 20.04+), macOS, Windows 10/11
 - **Python**: 3.10 이상
 - **RAM**: 4GB 이상
 - **저장공간**: 5GB 이상
 
-### 권장 사양
+#### 권장 사양
 - **OS**: Ubuntu 22.04 LTS
 - **Python**: 3.11 or 3.12
 - **RAM**: 8GB 이상
@@ -32,7 +53,145 @@
 
 ---
 
-## 🔧 설치 방법
+## 🐳 Docker 배포 방법 (권장)
+
+### 1. Docker 설치
+
+#### Ubuntu/Debian
+```bash
+# Docker 설치
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# 현재 사용자를 docker 그룹에 추가
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Docker Compose 설치 (이미 포함됨)
+docker compose version
+```
+
+#### macOS
+```bash
+# Homebrew로 설치
+brew install --cask docker
+
+# 또는 공식 사이트에서 다운로드
+# https://www.docker.com/products/docker-desktop
+```
+
+#### Windows
+```bash
+# WSL2 활성화 후 Docker Desktop 설치
+# https://www.docker.com/products/docker-desktop
+```
+
+### 2. 프로젝트 다운로드 및 압축 해제
+
+```bash
+# 최신 버전 다운로드 (wget 사용)
+wget https://www.genspark.ai/api/files/s/[NEW_BACKUP_URL] -O pci-api-docker.tar.gz
+
+# 또는 curl 사용
+curl -L https://www.genspark.ai/api/files/s/[NEW_BACKUP_URL] -o pci-api-docker.tar.gz
+
+# 압축 해제
+tar -xzf pci-api-docker.tar.gz
+
+# 프로젝트 디렉토리로 이동
+cd webapp
+```
+
+### 3. TabPFN 환경변수 설정 (선택사항)
+
+TabPFN 모델을 사용하려면 Hugging Face 토큰이 필요합니다.
+
+```bash
+# .env 파일 생성
+echo "HF_TOKEN=hf_your_token_here" > .env
+
+# Hugging Face 토큰 발급 방법:
+# 1. https://huggingface.co/settings/tokens 접속
+# 2. "New token" 클릭 → Read 권한으로 토큰 생성
+# 3. 토큰을 복사하여 위 명령어에 붙여넣기
+```
+
+### 4. Docker Compose로 실행
+
+```bash
+# 컨테이너 빌드 및 실행 (첫 실행 시 5-10분 소요)
+docker-compose up -d
+
+# 빌드 로그 확인
+docker-compose logs -f
+
+# 서비스 상태 확인
+docker-compose ps
+```
+
+### 5. 서비스 테스트
+
+```bash
+# Health Check
+curl http://localhost:3000/health
+
+# 웹 UI 접속
+# http://localhost:3000
+
+# API 문서 접속
+# http://localhost:3000/docs
+```
+
+### 6. Docker 관리 명령어
+
+```bash
+# 로그 확인 (실시간)
+docker-compose logs -f
+
+# 컨테이너 재시작
+docker-compose restart
+
+# 컨테이너 중지
+docker-compose down
+
+# 컨테이너 중지 및 볼륨 삭제 (데이터 삭제 주의!)
+docker-compose down -v
+
+# 이미지 재빌드 후 실행
+docker-compose up -d --build
+
+# 리소스 사용량 확인
+docker stats pci-prediction-api
+```
+
+### 7. 리소스 제한 조정
+
+`docker-compose.yml` 파일을 수정하여 리소스 제한을 조정할 수 있습니다:
+
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '16.0'     # CPU 코어 수 조정 (워크스테이션 사양에 맞게)
+      memory: 32G      # 메모리 조정
+    reservations:
+      cpus: '4.0'      # 최소 예약 코어
+      memory: 8G       # 최소 예약 메모리
+```
+
+수정 후 재시작:
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+---
+
+## 🔧 PM2 배포 방법 (레거시)
+
+**⚠️ 주의**: Docker를 사용할 수 없는 환경에서만 사용하세요. RDKit/Mordred 설치 시 환경별 에러가 발생할 수 있습니다.
+
+자세한 내용은 `legacy/README.md` 파일을 참조하세요.
 
 ### 1. Python 설치 확인
 
@@ -44,14 +203,14 @@ python3 --version
 ### 2. 프로젝트 다운로드 및 압축 해제
 
 ```bash
-# 최신 버전 다운로드 (TabPFN 지원, wget 사용)
-wget https://www.genspark.ai/api/files/s/AMOsEmIW -O pci-prediction-api-tabpfn.tar.gz
+# 최신 버전 다운로드 (wget 사용)
+wget https://www.genspark.ai/api/files/s/[NEW_BACKUP_URL] -O pci-api.tar.gz
 
 # 또는 curl 사용
-curl -L https://www.genspark.ai/api/files/s/AMOsEmIW -o pci-prediction-api-tabpfn.tar.gz
+curl -L https://www.genspark.ai/api/files/s/[NEW_BACKUP_URL] -o pci-api.tar.gz
 
 # 압축 해제
-tar -xzf pci-prediction-api-tabpfn.tar.gz
+tar -xzf pci-api.tar.gz
 
 # 프로젝트 디렉토리로 이동
 cd webapp

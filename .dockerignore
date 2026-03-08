@@ -1,0 +1,86 @@
+# ============================================
+# Docker Build Optimization
+# ============================================
+# Exclude unnecessary files from Docker build context
+# Reduces build time and final image size
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# PM2 (legacy, not needed in Docker)
+.pm2/
+ecosystem.config.cjs
+pids/
+logs/
+*.log
+
+# Documentation (keep only essential)
+*.md
+!README.md
+!REQUIRED_FILES.md
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+test_*.py
+tests/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Backup files
+*.backup
+*.bak
+*.tar.gz
+*.zip
+
+# Large data files (will be mounted as volumes)
+saved_data/*
+!saved_data/.gitkeep
+raw/*
+!raw/.gitkeep
+models_trained/*
+!models_trained/.gitkeep
+shap_outputs/*
+!shap_outputs/.gitkeep
+food_predictions/*
+!food_predictions/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
