@@ -2,9 +2,17 @@
 
 ## 📦 다운로드 링크
 
-**프로젝트 백업 파일**: https://www.genspark.ai/api/files/s/g9dAKylw
+**최신 프로젝트 백업 (TabPFN 지원)**: https://www.genspark.ai/api/files/s/AMOsEmIW
+
+**이전 버전**: https://www.genspark.ai/api/files/s/g9dAKylw
 
 이 파일을 다운로드하여 압축을 풀면 전체 프로젝트를 로컬에서 실행할 수 있습니다.
+
+**✨ 최신 버전 업데이트 (2026-03-06)**:
+- 🧠 TabPFN Few-shot Learning 모델 완전 지원
+- 📖 Hugging Face 인증 단계별 가이드 추가
+- 🎯 소량 데이터(50-1000개)에 최적화된 학습
+- 📊 모델 비교 표 및 사용 시나리오 추가
 
 ---
 
@@ -36,14 +44,14 @@ python3 --version
 ### 2. 프로젝트 다운로드 및 압축 해제
 
 ```bash
-# 다운로드 (wget 사용)
-wget https://www.genspark.ai/api/files/s/g9dAKylw -O pci-prediction-api.tar.gz
+# 최신 버전 다운로드 (TabPFN 지원, wget 사용)
+wget https://www.genspark.ai/api/files/s/AMOsEmIW -O pci-prediction-api-tabpfn.tar.gz
 
 # 또는 curl 사용
-curl -L https://www.genspark.ai/api/files/s/g9dAKylw -o pci-prediction-api.tar.gz
+curl -L https://www.genspark.ai/api/files/s/AMOsEmIW -o pci-prediction-api-tabpfn.tar.gz
 
 # 압축 해제
-tar -xzf pci-prediction-api.tar.gz
+tar -xzf pci-prediction-api-tabpfn.tar.gz
 
 # 프로젝트 디렉토리로 이동
 cd webapp
@@ -385,9 +393,9 @@ docker logs -f pci-api
 # SSH 접속
 ssh user@your-server-ip
 
-# 프로젝트 다운로드
-wget https://www.genspark.ai/api/files/s/g9dAKylw -O pci-prediction-api.tar.gz
-tar -xzf pci-prediction-api.tar.gz
+# 최신 버전 다운로드 (TabPFN 지원)
+wget https://www.genspark.ai/api/files/s/AMOsEmIW -O pci-prediction-api-tabpfn.tar.gz
+tar -xzf pci-prediction-api-tabpfn.tar.gz
 cd webapp
 
 # Python 3.11 설치
@@ -398,6 +406,10 @@ sudo apt install -y python3.11 python3.11-venv python3-pip
 python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+# (선택) TabPFN 사용 시 Hugging Face 인증
+huggingface-cli login
+# 토큰 입력 후 https://huggingface.co/Prior-Labs/tabpfn_2_5 에서 Accept terms
 
 # PM2로 서버 시작
 npm install -g pm2
