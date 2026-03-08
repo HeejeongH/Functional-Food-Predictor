@@ -118,6 +118,106 @@ pm2 stop pci-api
 
 ---
 
+## 🧠 TabPFN 모델 사용 설정 (선택사항)
+
+TabPFN은 Few-shot Learning에 특화된 모델로, 소량의 데이터(50개)에서 우수한 성능을 보입니다.
+
+### TabPFN 활성화 방법
+
+#### 1. Hugging Face 계정 생성 및 인증
+
+```bash
+# Hugging Face CLI 설치 (이미 requirements.txt에 포함됨)
+pip install huggingface-hub
+
+# Hugging Face 로그인
+huggingface-cli login
+# 또는
+hf auth login
+
+# 프롬프트가 나오면 Hugging Face 토큰 입력
+# 토큰 생성: https://huggingface.co/settings/tokens
+```
+
+#### 2. TabPFN 모델 접근 권한 요청
+
+1. **모델 페이지 방문**: https://huggingface.co/Prior-Labs/tabpfn_2_5
+2. **"Accept terms"** 버튼 클릭하여 약관 동의
+3. **접근 권한 승인 대기** (보통 즉시 승인됨)
+
+#### 3. 환경변수 설정 (선택)
+
+```bash
+# ~/.bashrc 또는 ~/.zshrc에 추가
+export HF_TOKEN="your_huggingface_token"
+
+# 또는 .env 파일 생성
+echo "HF_TOKEN=your_huggingface_token" > .env
+```
+
+#### 4. TabPFN 모델 테스트
+
+```bash
+# Python으로 테스트
+python3 -c "from tabpfn import TabPFNClassifier; print('TabPFN available!')"
+
+# 또는 API로 테스트
+curl -X POST http://localhost:3000/api/models/train \
+  -H "Content-Type: application/json" \
+  -d '{
+    "protein_name": "FTO",
+    "model_type": "TabPFN",
+    "feature_type": "fingerprint"
+  }'
+```
+
+### TabPFN vs 다른 모델 비교
+
+| 모델 | 데이터 크기 | 학습 속도 | 정확도 | Few-shot 성능 |
+|------|-----------|---------|--------|--------------|
+| **TabPFN** | 소량 (50개) | 매우 빠름 | 높음 | ⭐⭐⭐⭐⭐ |
+| **XGBoost** | 중간~대량 | 빠름 | 높음 | ⭐⭐⭐ |
+| **LightGBM** | 대량 | 매우 빠름 | 높음 | ⭐⭐ |
+| **CatBoost** | 중간~대량 | 중간 | 매우 높음 | ⭐⭐⭐ |
+| **RandomForest** | 소량~중간 | 중간 | 중간 | ⭐⭐ |
+
+### TabPFN 권장 사용 시나리오
+
+✅ **사용 권장**:
+- 데이터가 50-1000개 정도로 적을 때
+- 빠른 프로토타이핑이 필요할 때
+- Transfer Learning 효과를 극대화하고 싶을 때
+- 새로운 단백질에 대한 초기 탐색
+
+❌ **사용 비권장**:
+- 데이터가 10,000개 이상일 때
+- 매우 복잡한 feature engineering이 필요할 때
+- GPU가 없는 환경 (CPU로도 작동하지만 느림)
+
+### TabPFN 문제 해결
+
+#### "Failed to download TabPFN model" 오류
+
+```bash
+# 1. 인증 확인
+huggingface-cli whoami
+
+# 2. 모델 접근 권한 확인
+# https://huggingface.co/Prior-Labs/tabpfn_2_5 에서 Accept terms 클릭
+
+# 3. 토큰 재설정
+huggingface-cli login --token YOUR_NEW_TOKEN
+```
+
+#### "GPU out of memory" 오류
+
+```python
+# CPU 모드로 강제 실행 (app/services/model_training.py)
+return TabPFNClassifier(device='cpu')
+```
+
+---
+
 ## 🔒 방화벽 설정 (외부 접속 허용 시)
 
 ### Linux (ufw)

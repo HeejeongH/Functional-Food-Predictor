@@ -20,9 +20,15 @@
 10. ✅ **통합 워크플로우 UI** - 단계별 체크박스 선택 및 한번에 실행
 11. ✅ **단일 데이터셋 구조** - Transfer/Fewshot 구분 제거, 모델 선택으로 학습 방식 결정
 
-### 최근 업데이트 (2026-03-05)
+### 최근 업데이트 (2026-03-06)
 
-**🎯 워크플로우 개선**
+**🧠 TabPFN 모델 지원**
+- TabPFN 6.4.1 Few-shot Learning 모델 통합
+- Hugging Face 인증 가이드 추가 (`DEPLOYMENT.md` 참고)
+- 소량 데이터(50-1000개)에서 우수한 성능 제공
+- 프론트엔드 UI에 TabPFN 옵션 추가
+
+**🎯 워크플로우 개선** (2026-03-05)
 - Step 1: 데이터 수집 → 단백질 목록 확인 버튼
 - Step 2-5: 수집된 단백질만 드롭다운 선택 가능
 - Step 3: 모델 학습 후 자동 저장 및 "AUTO" 선택
@@ -219,12 +225,63 @@ GET /api/models/list
   - LightGBM 4.6.0
   - CatBoost 1.2.10
   - Scikit-learn 1.6.1
-  - TabPFN 0.1.10 (선택적)
+  - **TabPFN 6.4.1** (소량 데이터 Few-shot 학습 전문, Hugging Face 인증 필요)
 - **Interpretability**: SHAP 0.50.0
 - **Data Processing**: Pandas 2.2.3, NumPy 1.26.4
 - **Process Manager**: PM2
 
 ## 설치 및 실행
+
+### 0. TabPFN 사용 설정 (선택사항)
+
+TabPFN은 Few-shot Learning에 특화된 모델로, 소량 데이터(50-1000개)에서 우수한 성능을 제공합니다.
+
+**⚠️ 중요**: TabPFN을 사용하려면 Hugging Face 인증이 필요합니다.
+
+#### TabPFN 활성화 단계
+
+```bash
+# 1. TabPFN 패키지 설치 (아나콘다 가상환경 권장)
+pip install tabpfn
+
+# 2. Hugging Face 로그인
+huggingface-cli login
+# 또는
+hf auth login
+
+# 프롬프트가 나오면 Hugging Face 토큰 입력
+# 토큰 생성: https://huggingface.co/settings/tokens
+
+# 3. TabPFN 모델 접근 권한 요청
+# 브라우저에서 https://huggingface.co/Prior-Labs/tabpfn_2_5 방문
+# "Accept terms" 버튼 클릭하여 약관 동의
+
+# 4. TabPFN 동작 확인
+python3 -c "from tabpfn import TabPFNClassifier; print('TabPFN available!')"
+```
+
+**TabPFN vs 다른 모델 비교**
+
+| 모델 | 데이터 크기 | 학습 속도 | Few-shot 성능 | 권장 사용 시나리오 |
+|------|-----------|---------|--------------|-----------------|
+| **TabPFN** | 50-1000개 | 매우 빠름 | ⭐⭐⭐⭐⭐ | 신규 단백질, 프로토타입, 소량 데이터 |
+| **XGBoost** | 100+ 개 | 빠름 | ⭐⭐⭐ | 범용 예측, 충분한 데이터 |
+| **LightGBM** | 1000+ 개 | 매우 빠름 | ⭐⭐ | 대용량 데이터, 속도 중시 |
+| **CatBoost** | 100+ 개 | 중간 | ⭐⭐⭐ | 범주형 특성 많을 때 |
+| **RandomForest** | 50+ 개 | 중간 | ⭐⭐ | 기본 baseline 모델 |
+
+✅ **TabPFN 권장 상황**:
+- 새로운 단백질에 대한 초기 탐색
+- 데이터가 50-1000개 정도로 적을 때
+- 빠른 프로토타이핑이 필요할 때
+- Transfer Learning 효과를 극대화하고 싶을 때
+
+❌ **TabPFN 비권장 상황**:
+- 데이터가 10,000개 이상일 때
+- GPU가 없는 환경 (CPU로도 작동하지만 느림)
+- Hugging Face 인증이 어려운 환경
+
+**📖 자세한 TabPFN 설정 가이드**: `DEPLOYMENT.md` 참고
 
 ### 1. 의존성 설치
 
@@ -296,7 +353,22 @@ curl -X POST "http://localhost:3000/api/features/transform" \
   }'
 ```
 
-#### 3단계: 모델 학습
+#### 3단계: 모델 학습 (TabPFN 예시)
+```bash
+curl -X POST "http://localhost:3000/api/models/train" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "protein_name": "FTO",
+    "model_type": "TabPFN",
+    "feature_type": "fingerprint",
+    "test_size": 0.2,
+    "random_state": 42
+  }'
+```
+
+**💡 Tip**: TabPFN 사용 시 먼저 Hugging Face 인증을 완료해야 합니다. 자세한 내용은 위의 "0. TabPFN 사용 설정" 섹션을 참고하세요.
+
+#### 3단계: 모델 학습 (XGBoost 예시)
 ```bash
 curl -X POST "http://localhost:3000/api/models/train" \
   -H "Content-Type: application/json" \
