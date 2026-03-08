@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Query
 from app.models.schemas import FooDBPredictRequest, PredictionResponse
 from app.services.model_training import ModelTrainingService
 from app.services.feature_transform import FeatureTransformService
@@ -6,7 +6,7 @@ from app.services.foodb_service import FooDBService
 from app.services.foodb_preprocessing import FooDBPreprocessingService
 import pandas as pd
 import os
-from typing import List
+from typing import List, Optional
 
 router = APIRouter(prefix="/api/foodb", tags=["FooDB Prediction"])
 
@@ -14,6 +14,148 @@ model_service = ModelTrainingService()
 feature_service = FeatureTransformService()
 foodb_service = FooDBService()
 foodb_preprocessing = FooDBPreprocessingService()
+
+
+@router.get("/fetch")
+async def fetch_compounds_from_foodb(
+    query: Optional[str] = Query(None, description="Search query (e.g., 'polyphenol', 'vitamin')"),
+    food_name: Optional[str] = Query(None, description="Food name (e.g., 'apple', 'tomato')"),
+    limit: int = Query(1000, description="Maximum number of compounds to fetch", ge=1, le=5000)
+):
+    """
+    ⚠️ FooDB API 가져오기 (비활성화됨)
+    
+    **중요**: FooDB는 공식 공개 REST API를 제공하지 않습니다.
+    
+    **대신 CSV 다운로드 사용을 권장합니다:**
+    
+    1. **FooDB 다운로드 페이지**: https://foodb.ca/downloads
+    2. **추천 파일**:
+       - `Compound.csv` - 모든 화합물 정보 (70,000+ compounds)
+       - `Food.csv` - 모든 식품 정보 (900+ foods)
+       - `Content.csv` - 화합물-식품 관계 정보
+    
+    3. **다운로드 후 사용**:
+       ```bash
+       # CSV 업로드
+       curl -X POST http://localhost:3000/api/foodb/upload \\
+         -F "file=@Compound.csv"
+       
+       # 예측 실행
+       curl -X POST http://localhost:3000/api/foodb/predict \\
+         -H "Content-Type: application/json" \\
+         -d '{"csv_path": "saved_data/FooDB/Compound.csv", "model_id": "your_model_id"}'
+       ```
+    
+    **Alternative**: 사용자 정의 SMILES 리스트로 예측
+       ```bash
+       curl -X POST http://localhost:3000/api/foodb/predict-smiles \\
+         -H "Content-Type: application/json" \\
+         -d '{"smiles_list": ["CCO", "CC(=O)O"], "model_id": "your_model_id"}'
+       ```
+    """
+    
+    # FooDB API 미지원 안내
+    raise HTTPException(
+        status_code=501,
+        detail={
+            "error": "FooDB public API is not available",
+            "message": "FooDB does not provide a public REST API for direct access",
+            "solution": "Please download CSV files from https://foodb.ca/downloads",
+            "recommended_files": [
+                {
+                    "name": "Compound.csv",
+                    "description": "All chemical compounds (70,000+ compounds)",
+                    "url": "https://foodb.ca/downloads",
+                    "size": "~50 MB"
+                },
+                {
+                    "name": "Food.csv",
+                    "description": "All food items (900+ foods)",
+                    "url": "https://foodb.ca/downloads",
+                    "size": "~5 MB"
+                },
+                {
+                    "name": "Content.csv",
+                    "description": "Compound-Food relationships",
+                    "url": "https://foodb.ca/downloads",
+                    "size": "~200 MB"
+                }
+            ],
+            "alternative_endpoints": {
+                "upload_csv": "POST /api/foodb/upload",
+                "predict_from_csv": "POST /api/foodb/predict",
+                "predict_from_smiles": "POST /api/foodb/predict-smiles"
+            }
+        }
+    )
+
+
+@router.get("/search-food")
+async def search_food_compounds(
+    food_name: str = Query(..., description="Food name (e.g., 'apple', 'tomato', 'coffee')"),
+    limit: int = Query(100, description="Maximum number of compounds", ge=1, le=1000)
+):
+    """
+    ⚠️ 특정 식품의 화합물 검색 (비활성화됨)
+    
+    **중요**: FooDB REST API가 없어 직접 검색이 불가능합니다.
+    
+    **대안 방법**:
+    
+    1. **FooDB CSV 다운로드**: https://foodb.ca/downloads
+       - `Content.csv` 다운로드 (화합물-식품 관계)
+       - `Compound.csv` 다운로드 (화합물 정보)
+    
+    2. **CSV 필터링 예제** (Python/Pandas):
+       ```python
+       import pandas as pd
+       
+       # CSV 로드
+       content = pd.read_csv('Content.csv')
+       compounds = pd.read_csv('Compound.csv')
+       foods = pd.read_csv('Food.csv')
+       
+       # 특정 식품 검색 (예: Apple)
+       apple = foods[foods['name'].str.contains('Apple', case=False)]
+       apple_id = apple['id'].iloc[0]
+       
+       # 해당 식품의 화합물 찾기
+       apple_contents = content[content['food_id'] == apple_id]
+       apple_compounds = compounds[compounds['id'].isin(apple_contents['compound_id'])]
+       
+       # SMILES 추출
+       smiles_list = apple_compounds['moldb_smiles'].dropna().tolist()
+       ```
+    
+    3. **API 예측 실행**:
+       ```bash
+       curl -X POST http://localhost:3000/api/foodb/predict-smiles \\
+         -H "Content-Type: application/json" \\
+         -d '{"smiles_list": ["your", "smiles", "list"], "model_id": "your_model_id"}'
+       ```
+    """
+    
+    raise HTTPException(
+        status_code=501,
+        detail={
+            "error": "FooDB search API is not available",
+            "message": f"Cannot search compounds in '{food_name}' via API",
+            "solution": "Download CSV from https://foodb.ca/downloads and filter locally",
+            "workflow": [
+                "1. Download Content.csv, Compound.csv, Food.csv from https://foodb.ca/downloads",
+                f"2. Filter Food.csv for '{food_name}'",
+                "3. Use food_id to find compounds in Content.csv",
+                "4. Extract SMILES from Compound.csv",
+                "5. Use POST /api/foodb/predict-smiles for prediction"
+            ],
+            "alternative": {
+                "upload_csv": "POST /api/foodb/upload - Upload pre-filtered CSV",
+                "predict_smiles": "POST /api/foodb/predict-smiles - Direct SMILES prediction"
+            }
+        }
+    )
+
 
 @router.post("/upload")
 async def upload_foodb_csv(file: UploadFile = File(...)):

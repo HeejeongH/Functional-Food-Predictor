@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from typing import List, Dict
+import requests
+from typing import List, Dict, Optional
 from app.services.feature_transform import FeatureTransformService
 
 class FooDBService:
@@ -8,8 +9,74 @@ class FooDBService:
     FooDB 식품 화합물 예측 서비스
     """
     
+    # FooDB API 엔드포인트
+    FOODB_API_BASE = "https://foodb.ca/unearth/q"
+    FOODB_COMPOUND_API = "https://foodb.ca/compounds.json"
+    
     def __init__(self):
         self.feature_service = FeatureTransformService()
+    
+    def fetch_compounds_from_foodb(
+        self,
+        query: Optional[str] = None,
+        limit: int = 1000,
+        food_name: Optional[str] = None
+    ) -> pd.DataFrame:
+        """
+        FooDB API에서 화합물 데이터 가져오기
+        
+        ⚠️ 주의: FooDB는 공식 공개 API를 제공하지 않습니다.
+        대신 CSV 다운로드 사용을 권장합니다: https://foodb.ca/downloads
+        
+        Args:
+            query: 검색 쿼리 (예: "polyphenol", "vitamin")
+            limit: 최대 결과 개수
+            food_name: 특정 식품 이름 (예: "apple", "tomato")
+        
+        Returns:
+            화합물 데이터프레임 (id, name, smiles, moldb_inchikey 등)
+        """
+        
+        print(f"⚠️  FooDB does not provide a public REST API")
+        print(f"   Please download CSV from: https://foodb.ca/downloads")
+        print(f"   Recommended files:")
+        print(f"     - Compounds.csv (all chemical compounds)")
+        print(f"     - Foods.csv (all food items)")
+        print(f"     - Contents.csv (compound-food relationships)")
+        print(f"")
+        print(f"   After download, use POST /api/foodb/upload endpoint")
+        
+        # 빈 DataFrame 반환
+        return pd.DataFrame()
+    
+    def search_food_compounds(
+        self,
+        food_name: str,
+        limit: int = 100
+    ) -> pd.DataFrame:
+        """
+        특정 식품의 화합물 검색
+        
+        Args:
+            food_name: 식품 이름 (예: "apple", "tomato", "coffee")
+            limit: 최대 결과 개수
+        
+        Returns:
+            해당 식품의 화합물 데이터프레임
+        """
+        
+        print(f"Searching compounds in food: {food_name}")
+        
+        try:
+            # FooDB 검색 API (실제 endpoint는 문서 확인 필요)
+            # 현재는 간단한 구현
+            return self.fetch_compounds_from_foodb(
+                query=food_name,
+                limit=limit
+            )
+        except Exception as e:
+            print(f"  Error searching food compounds: {str(e)}")
+            return pd.DataFrame()
     
     def predict_batch(
         self,
