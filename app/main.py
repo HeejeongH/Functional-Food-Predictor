@@ -10,7 +10,8 @@ from app.routers import (
     data_collection,
     feature_transform,
     model_training,
-    shap_analysis
+    shap_analysis,
+    foodb_prediction
 )
 
 # FastAPI 앱 생성
@@ -27,6 +28,7 @@ app = FastAPI(
     3. **모델 학습**: TabPFN, XGBoost, LightGBM, CatBoost 등 AutoML 모델 학습
     4. **예측**: 학습된 모델로 화합물 활성 예측
     5. **SHAP 분석**: 중요 화학 특성 추출 및 해석
+    6. **FooDB 예측**: 식품 화합물 데이터베이스 활성 예측
     
     ### 워크플로우:
     1. `/api/data/collect` - 타겟 유전자 데이터 수집
@@ -57,6 +59,7 @@ app.include_router(data_collection.router)
 app.include_router(feature_transform.router)
 app.include_router(model_training.router)
 app.include_router(shap_analysis.router)
+app.include_router(foodb_prediction.router)
 
 # 루트 엔드포인트 - 웹사이트 메인 페이지
 @app.get("/")
@@ -80,7 +83,8 @@ async def health_check():
             "data_collection": "available",
             "feature_transform": "available",
             "model_training": "available",
-            "shap_analysis": "available"
+            "shap_analysis": "available",
+            "foodb_prediction": "available"
         },
         "data": {
             "collected_datasets": len(glob.glob("saved_data/IC50/*.xlsx")),
@@ -103,11 +107,13 @@ if __name__ == "__main__":
     # 필요한 디렉토리 생성
     os.makedirs("saved_data/IC50", exist_ok=True)
     os.makedirs("saved_data/BindingDB", exist_ok=True)
+    os.makedirs("saved_data/FooDB", exist_ok=True)
     os.makedirs("raw/FewshotSet", exist_ok=True)
     os.makedirs("raw/TransferSet", exist_ok=True)
     os.makedirs("raw/descriptors", exist_ok=True)
     os.makedirs("models_trained", exist_ok=True)
     os.makedirs("shap_outputs", exist_ok=True)
+    os.makedirs("food_predictions", exist_ok=True)
     
     # 서버 실행
     uvicorn.run(

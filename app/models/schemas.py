@@ -84,3 +84,7 @@ class SHAPAnalysisResponse(BaseModel):
     top_features: List[Dict[str, Any]]
     shap_values_summary: Dict[str, Any]
     plot_path: Optional[str]
+
+class FooDBPredictRequest(BaseModel):
+    smiles_list: List[str] = Field(..., description="식품 화합물 SMILES 리스트")
+    model_id: str = Field(..., description="학습된 모델 ID")
