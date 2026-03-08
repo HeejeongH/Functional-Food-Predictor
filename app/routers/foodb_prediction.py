@@ -3,6 +3,7 @@ from app.models.schemas import FooDBPredictRequest, PredictionResponse
 from app.services.model_training import ModelTrainingService
 from app.services.feature_transform import FeatureTransformService
 from app.services.foodb_service import FooDBService
+from app.services.foodb_preprocessing import FooDBPreprocessingService
 import pandas as pd
 import os
 from typing import List
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/api/foodb", tags=["FooDB Prediction"])
 model_service = ModelTrainingService()
 feature_service = FeatureTransformService()
 foodb_service = FooDBService()
+foodb_preprocessing = FooDBPreprocessingService()
 
 @router.post("/upload")
 async def upload_foodb_csv(file: UploadFile = File(...)):
@@ -53,6 +55,92 @@ async def upload_foodb_csv(file: UploadFile = File(...)):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload FooDB CSV: {str(e)}")
+
+
+@router.post("/preprocess")
+async def preprocess_foodb(
+    foodb_file: str,
+    protein_name: str,
+    fingerprint_type: str = "MACCS",
+    dataset_ratio: str = "20x",
+    ignore3D: bool = True
+):
+    """
+    FooDB 전처리 (3D Conformer + Mordred Descriptor)
+    
+    - **foodb_file**: FooDB CSV 파일 경로
+    - **protein_name**: 단백질 이름 (descriptor 선택용)
+    - **fingerprint_type**: MACCS, ECFP4, MORGAN
+    - **dataset_ratio**: 5x, 10x, 20x
+    - **ignore3D**: 3D descriptor 무시 여부 (False = 3D 계산)
+    
+    ⚠️ 주의: 3D conformer 생성은 시간이 오래 걸립니다 (1000개 화합물 ≈ 10-30분)
+    """
+    try:
+        # Descriptor selection 파일 로드
+        descriptor_selection_path = "descriptor_selection.csv"
+        if not os.path.exists(descriptor_selection_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"descriptor_selection.csv not found. Please upload this file first."
+            )
+        
+        selected_descriptor = pd.read_csv(descriptor_selection_path)
+        
+        # 해당 protein/ratio/3D 조합의 descriptor 찾기
+        ignore3D_str = "True" if ignore3D else "False"
+        file_name = f'descriptors_filtered_{protein_name}_training_{dataset_ratio}_ignore3D_{ignore3D_str}.csv'
+        
+        if file_name not in selected_descriptor.columns:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Descriptor column '{file_name}' not found in descriptor_selection.csv"
+            )
+        
+        descriptor_names = selected_descriptor[file_name].dropna().tolist()
+        
+        if not descriptor_names:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No descriptors found for {file_name}"
+            )
+        
+        print(f"Selected {len(descriptor_names)} descriptors for {protein_name} {dataset_ratio} ignore3D={ignore3D}")
+        
+        # 출력 경로 설정
+        output_path = f'saved_data/FooDB/preprocessed/{protein_name}_{fingerprint_type}_{dataset_ratio}_ignore3D_{ignore3D}.csv'
+        cache_3d_path = f'saved_data/FooDB/3d_conformers/{protein_name}_{dataset_ratio}.sdf'
+        
+        # 전처리 실행
+        result_df = foodb_preprocessing.preprocess_foodb(
+            foodb_csv_path=foodb_file,
+            protein_name=protein_name,
+            fingerprint_type=fingerprint_type,
+            dataset_ratio=dataset_ratio,
+            ignore3D=ignore3D,
+            descriptor_names=descriptor_names,
+            output_path=output_path,
+            cache_3d_path=cache_3d_path
+        )
+        
+        return {
+            "message": "FooDB preprocessing completed successfully",
+            "input_file": foodb_file,
+            "output_file": output_path,
+            "total_compounds": len(result_df),
+            "fingerprint_type": fingerprint_type,
+            "fingerprint_size": 167 if fingerprint_type == 'MACCS' else 1024,
+            "descriptor_count": len(descriptor_names),
+            "total_features": (167 if fingerprint_type == 'MACCS' else 1024) + len(descriptor_names),
+            "3d_cache": cache_3d_path if not ignore3D else None
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"FooDB preprocessing failed: {str(e)}")
 
 
 @router.post("/predict")
