@@ -1,5 +1,10 @@
 # 🚀 PCI Prediction API - 배포 가이드
 
+> **🪟 Windows 사용자**: [WINDOWS_SETUP.md](WINDOWS_SETUP.md) 문서를 먼저 참조하세요!
+> - Docker Desktop + WSL2 설치 상세 가이드
+> - Anaconda 방식 (Docker 없이 사용)
+> - Windows 전용 문제 해결
+
 ## 📦 다운로드 링크
 
 **최신 프로젝트 백업 (Docker + TabPFN 지원)**: https://www.genspark.ai/api/files/s/BWcmopJe

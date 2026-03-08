@@ -6,6 +6,11 @@
 
 ## 🐳 빠른 시작 (Docker 권장)
 
+> **🪟 Windows 사용자**: [WINDOWS_SETUP.md](WINDOWS_SETUP.md) 문서를 먼저 참조하세요!
+> - Docker Desktop + WSL2 설치 가이드
+> - Anaconda 방식 (Docker 없이)
+> - 문제 해결 가이드
+
 ### Docker로 실행 (추천 ⭐)
 
 ```bash
