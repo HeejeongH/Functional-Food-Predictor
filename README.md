@@ -255,7 +255,7 @@ webapp/
 │       ├── 3d_conformers/        # 3D conformer 캐시 (SDF)
 │       └── preprocessed/         # 전처리된 데이터
 ├── raw/                          # 변환된 특성 데이터 (볼륨)
-│   └── Dataset/                  # 통합 데이터셋
+│   └── Dataset/                  # 통합 데이터셋 (FTO.csv 등)
 ├── models_trained/               # 학습된 모델 (볼륨)
 ├── shap_outputs/                 # SHAP 분석 결과 (볼륨)
 ├── food_predictions/             # FooDB 예측 결과 (볼륨)
