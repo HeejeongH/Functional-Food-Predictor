@@ -72,7 +72,7 @@ wsl
 cd ~
 
 # 프로젝트 다운로드
-wget https://www.genspark.ai/api/files/s/WZhic6Bf -O pci-api.tar.gz
+wget https://www.genspark.ai/api/files/s/aOHN75yq -O pci-api.tar.gz
 
 # 압축 해제
 tar -xzf pci-api.tar.gz
@@ -130,7 +130,7 @@ Docker Desktop을 사용할 수 없는 경우 (Windows Home Edition Build < 1904
 cd %USERPROFILE%\Documents
 
 # 프로젝트 다운로드 (curl 사용)
-curl -L https://www.genspark.ai/api/files/s/WZhic6Bf -o pci-api.tar.gz
+curl -L https://www.genspark.ai/api/files/s/aOHN75yq -o pci-api.tar.gz
 
 # 압축 해제 (7-Zip 또는 Windows 기본 도구 사용)
 tar -xzf pci-api.tar.gz
@@ -138,7 +138,7 @@ cd webapp
 ```
 
 **또는 Windows 탐색기에서**:
-1. 브라우저에서 https://www.genspark.ai/api/files/s/WZhic6Bf 다운로드
+1. 브라우저에서 https://www.genspark.ai/api/files/s/aOHN75yq 다운로드
 2. 파일 우클릭 → 압축 풀기
 3. `webapp` 폴더로 이동
 

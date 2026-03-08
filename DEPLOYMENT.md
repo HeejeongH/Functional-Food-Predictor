@@ -7,9 +7,10 @@
 
 ## 📦 다운로드 링크
 
-**최신 프로젝트 백업 (Docker + Windows + TabPFN 지원)**: https://www.genspark.ai/api/files/s/WZhic6Bf
-- 파일 크기: 1.4 MB
-- 포함 내용: Docker/Docker Compose 설정, Windows 설치 가이드, TabPFN 모델, FooDB 전처리, 6개 학습 모델, SHAP 분석, descriptor_selection.csv
+**최신 프로젝트 백업 (Docker + Windows + TabPFN 지원)**: https://www.genspark.ai/api/files/s/aOHN75yq
+- 파일 크기: 1.4 MB (정리 후)
+- 포함 내용: Docker/Docker Compose, Windows 가이드, TabPFN, FooDB 전처리, 6개 학습 모델, descriptor_selection.csv
+- 정리됨: 불필요한 캐시 및 구버전 데이터 제거
 
 **이전 버전 (PM2 방식)**: https://www.genspark.ai/api/files/s/AMOsEmIW
 
@@ -97,10 +98,10 @@ brew install --cask docker
 
 ```bash
 # 최신 버전 다운로드 (wget 사용)
-wget https://www.genspark.ai/api/files/s/WZhic6Bf -O pci-api-docker.tar.gz
+wget https://www.genspark.ai/api/files/s/aOHN75yq -O pci-api-docker.tar.gz
 
 # 또는 curl 사용
-curl -L https://www.genspark.ai/api/files/s/WZhic6Bf -o pci-api-docker.tar.gz
+curl -L https://www.genspark.ai/api/files/s/aOHN75yq -o pci-api-docker.tar.gz
 
 # 압축 해제
 tar -xzf pci-api-docker.tar.gz
@@ -211,10 +212,10 @@ python3 --version
 
 ```bash
 # 최신 버전 다운로드 (wget 사용)
-wget https://www.genspark.ai/api/files/s/WZhic6Bf -O pci-api.tar.gz
+wget https://www.genspark.ai/api/files/s/aOHN75yq -O pci-api.tar.gz
 
 # 또는 curl 사용
-curl -L https://www.genspark.ai/api/files/s/WZhic6Bf -o pci-api.tar.gz
+curl -L https://www.genspark.ai/api/files/s/aOHN75yq -o pci-api.tar.gz
 
 # 압축 해제
 tar -xzf pci-api.tar.gz
