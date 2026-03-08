@@ -107,9 +107,20 @@ pm2 logs pci-api --nostream
 - 배치 예측 (대량 화합물 처리)
 - 활성 확률 기준 정렬 및 상위 N개 추출
 
+**📥 FooDB 데이터 사용 방법**:
+1. https://foodb.ca/downloads 에서 CSV 다운로드
+   - `Compound.csv` - 70,000+ 화합물 (SMILES 포함)
+   - `Food.csv` - 900+ 식품
+   - `Content.csv` - 화합물-식품 관계
+2. `POST /api/foodb/upload` 로 CSV 업로드
+3. `POST /api/foodb/predict` 로 배치 예측
+4. 또는 `POST /api/foodb/predict-smiles` 로 직접 SMILES 예측
+
+⚠️ **참고**: FooDB는 공개 REST API를 제공하지 않습니다. CSV 다운로드 필수입니다.
+
 ### 아직 구현되지 않은 기능
 
-- ⏳ FooDB API 자동 수집 (현재는 CSV 업로드 방식)
+- ❌ ~~FooDB API 자동 수집~~ (FooDB는 공개 API 미제공, CSV 사용 권장)
 - ⏳ 모델 앙상블 및 하이퍼파라미터 튜닝
 - ⏳ 사용자 인증 및 API 키 관리
 - ⏳ 식품-단백질 상호작용 네트워크 시각화
