@@ -1,0 +1,431 @@
+# 🚀 PCI Prediction API - 로컬 서버 설치 가이드
+
+## 📦 다운로드 링크
+
+**프로젝트 백업 파일**: https://www.genspark.ai/api/files/s/g9dAKylw
+
+이 파일을 다운로드하여 압축을 풀면 전체 프로젝트를 로컬에서 실행할 수 있습니다.
+
+---
+
+## 💻 시스템 요구사항
+
+### 최소 사양
+- **OS**: Linux (Ubuntu 20.04+), macOS, Windows 10/11
+- **Python**: 3.10 이상
+- **RAM**: 4GB 이상
+- **저장공간**: 5GB 이상
+
+### 권장 사양
+- **OS**: Ubuntu 22.04 LTS
+- **Python**: 3.11 or 3.12
+- **RAM**: 8GB 이상
+- **저장공간**: 10GB 이상
+
+---
+
+## 🔧 설치 방법
+
+### 1. Python 설치 확인
+
+```bash
+python3 --version
+# Python 3.10 이상이어야 함
+```
+
+### 2. 프로젝트 다운로드 및 압축 해제
+
+```bash
+# 다운로드 (wget 사용)
+wget https://www.genspark.ai/api/files/s/g9dAKylw -O pci-prediction-api.tar.gz
+
+# 또는 curl 사용
+curl -L https://www.genspark.ai/api/files/s/g9dAKylw -o pci-prediction-api.tar.gz
+
+# 압축 해제
+tar -xzf pci-prediction-api.tar.gz
+
+# 프로젝트 디렉토리로 이동
+cd webapp
+```
+
+### 3. Python 가상환경 생성 (권장)
+
+```bash
+# venv 생성
+python3 -m venv venv
+
+# 활성화 (Linux/macOS)
+source venv/bin/activate
+
+# 활성화 (Windows)
+venv\Scripts\activate
+```
+
+### 4. 의존성 패키지 설치
+
+```bash
+# requirements.txt 설치
+pip install -r requirements.txt
+
+# 설치 시간: 약 5-10분 소요
+```
+
+### 5. 서버 실행
+
+#### Option A: 직접 실행 (개발용)
+
+```bash
+# Uvicorn으로 직접 실행
+uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
+
+# 브라우저에서 접속
+# http://localhost:3000
+```
+
+#### Option B: PM2 사용 (프로덕션 권장)
+
+```bash
+# PM2 설치 (Node.js 필요)
+npm install -g pm2
+
+# PM2로 서버 시작
+pm2 start ecosystem.config.cjs
+
+# 서버 상태 확인
+pm2 status
+
+# 로그 확인
+pm2 logs pci-api
+
+# 서버 재시작
+pm2 restart pci-api
+
+# 서버 중지
+pm2 stop pci-api
+```
+
+---
+
+## 🌐 접속 URL
+
+서버가 정상적으로 실행되면 다음 URL로 접속 가능합니다:
+
+- **웹 UI**: http://localhost:3000
+- **API 문서 (Swagger)**: http://localhost:3000/docs
+- **API 문서 (ReDoc)**: http://localhost:3000/redoc
+- **Health Check**: http://localhost:3000/health
+
+---
+
+## 🔒 방화벽 설정 (외부 접속 허용 시)
+
+### Linux (ufw)
+
+```bash
+# 포트 3000 열기
+sudo ufw allow 3000/tcp
+
+# 방화벽 상태 확인
+sudo ufw status
+```
+
+### Windows (PowerShell 관리자 권한)
+
+```powershell
+# 포트 3000 인바운드 규칙 추가
+New-NetFirewallRule -DisplayName "PCI Prediction API" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow
+```
+
+---
+
+## 📂 프로젝트 구조
+
+```
+webapp/
+├── app/                      # FastAPI 백엔드
+│   ├── main.py              # 메인 애플리케이션
+│   ├── routers/             # API 라우터
+│   │   ├── data_collection.py
+│   │   ├── feature_transform.py
+│   │   ├── model_training.py
+│   │   └── shap_analysis.py
+│   ├── services/            # 비즈니스 로직
+│   ├── models/              # Pydantic 스키마
+│   └── utils/               # 유틸리티 함수
+├── static/                  # 프론트엔드
+│   ├── index.html
+│   ├── css/
+│   └── js/
+├── saved_data/              # 수집된 데이터
+│   └── IC50/
+├── raw/                     # 변환된 특성 데이터
+│   └── Dataset/
+├── models_trained/          # 학습된 모델
+├── shap_outputs/            # SHAP 분석 결과
+├── requirements.txt         # Python 패키지
+├── ecosystem.config.cjs     # PM2 설정
+└── README.md               # 프로젝트 문서
+```
+
+---
+
+## 🎯 사용 방법
+
+### 1. 데이터 수집
+
+```bash
+# API로 직접 호출
+curl -X POST http://localhost:3000/api/data/collect \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_list": ["PDE4", "PDE5", "FTO"],
+    "standard_type": "IC50"
+  }'
+```
+
+### 2. 특성 변환
+
+```bash
+curl -X POST http://localhost:3000/api/features/transform \
+  -H "Content-Type: application/json" \
+  -d '{
+    "protein_name": "FTO",
+    "fingerprint_type": "MACCS",
+    "dataset_ratio": "20x",
+    "ignore3D": true
+  }'
+```
+
+### 3. 모델 학습
+
+```bash
+curl -X POST http://localhost:3000/api/models/train \
+  -H "Content-Type: application/json" \
+  -d '{
+    "protein_name": "FTO",
+    "model_type": "XGBoost",
+    "feature_type": "fingerprint"
+  }'
+```
+
+### 4. 예측
+
+```bash
+curl -X POST http://localhost:3000/api/models/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "smiles_list": ["CCO", "CC(=O)O"],
+    "model_id": "FTO_MLModelType.XGBOOST_20260306_053810",
+    "feature_type": "fingerprint"
+  }'
+```
+
+---
+
+## 🐳 Docker 배포 (선택사항)
+
+Docker를 사용하면 더 쉽게 배포할 수 있습니다.
+
+### Dockerfile 생성
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 시스템 패키지 설치
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python 패키지 설치
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 프로젝트 복사
+COPY . .
+
+# 포트 노출
+EXPOSE 3000
+
+# 서버 실행
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3000"]
+```
+
+### Docker 빌드 및 실행
+
+```bash
+# 이미지 빌드
+docker build -t pci-prediction-api .
+
+# 컨테이너 실행
+docker run -d -p 3000:3000 --name pci-api pci-prediction-api
+
+# 로그 확인
+docker logs -f pci-api
+```
+
+---
+
+## 🌍 외부 서버 배포 (AWS, GCP, Azure 등)
+
+### 1. 클라우드 VM 생성
+- AWS EC2, GCP Compute Engine, Azure VM 등
+- Ubuntu 22.04 LTS 권장
+- 최소 t2.medium (2 vCPU, 4GB RAM)
+
+### 2. 보안 그룹 설정
+- 포트 3000 인바운드 허용
+- SSH 포트 22 허용
+
+### 3. 서버 설정
+
+```bash
+# SSH 접속
+ssh user@your-server-ip
+
+# 프로젝트 다운로드
+wget https://www.genspark.ai/api/files/s/g9dAKylw -O pci-prediction-api.tar.gz
+tar -xzf pci-prediction-api.tar.gz
+cd webapp
+
+# Python 3.11 설치
+sudo apt update
+sudo apt install -y python3.11 python3.11-venv python3-pip
+
+# 가상환경 생성 및 패키지 설치
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# PM2로 서버 시작
+npm install -g pm2
+pm2 start ecosystem.config.cjs
+
+# PM2 자동 재시작 설정
+pm2 startup
+pm2 save
+```
+
+### 4. Nginx 리버스 프록시 (선택)
+
+```bash
+# Nginx 설치
+sudo apt install -y nginx
+
+# 설정 파일 생성
+sudo nano /etc/nginx/sites-available/pci-api
+```
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+```bash
+# 설정 활성화
+sudo ln -s /etc/nginx/sites-available/pci-api /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+---
+
+## 🔧 문제 해결
+
+### 포트가 이미 사용 중
+
+```bash
+# 포트 3000 사용 프로세스 확인
+lsof -i :3000
+
+# 프로세스 종료
+kill -9 <PID>
+```
+
+### 패키지 설치 오류
+
+```bash
+# pip 업그레이드
+pip install --upgrade pip
+
+# 캐시 클리어 후 재설치
+pip cache purge
+pip install -r requirements.txt
+```
+
+### RDKit 설치 오류
+
+```bash
+# conda 사용 (권장)
+conda install -c conda-forge rdkit
+
+# 또는 시스템 패키지 설치 후
+sudo apt install -y librdkit-dev python3-rdkit
+```
+
+---
+
+## 📊 성능 최적화
+
+### 1. Worker 수 증가
+
+```bash
+# ecosystem.config.cjs 수정
+instances: 4,  # CPU 코어 수에 맞게 조정
+exec_mode: 'cluster'
+```
+
+### 2. Gunicorn 사용
+
+```bash
+pip install gunicorn
+
+# Gunicorn으로 실행 (4 workers)
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:3000
+```
+
+### 3. 캐싱 설정
+
+- Redis 설치하여 descriptor 계산 결과 캐싱
+- 대용량 데이터셋은 사전 변환 후 저장
+
+---
+
+## 🔐 보안 권장사항
+
+1. **환경변수 사용**: API 키, DB 비밀번호 등은 `.env` 파일로 관리
+2. **HTTPS 설정**: Let's Encrypt로 SSL 인증서 발급
+3. **인증 추가**: JWT 토큰 기반 API 인증 구현
+4. **Rate Limiting**: 요청 제한으로 DDoS 방어
+
+---
+
+## 📞 지원
+
+문제가 발생하면:
+1. 로그 확인: `pm2 logs pci-api --lines 50`
+2. Health Check: `curl http://localhost:3000/health`
+3. API 문서: http://localhost:3000/docs
+
+---
+
+## 📄 라이선스
+
+이 프로젝트는 연구 목적으로 사용 가능합니다.
+
+---
+
+**배포 성공을 기원합니다!** 🎉
