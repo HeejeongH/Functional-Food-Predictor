@@ -10,7 +10,7 @@
 
 ```bash
 # 1. 프로젝트 다운로드 및 압축 해제
-wget https://www.genspark.ai/api/files/s/tBeIE0yv -O pci-api.tar.gz
+wget https://www.genspark.ai/api/files/s/BWcmopJe -O pci-api.tar.gz
 tar -xzf pci-api.tar.gz
 cd webapp
 
@@ -318,7 +318,7 @@ webapp/
 
 ```bash
 # 1. 프로젝트 다운로드
-wget https://www.genspark.ai/api/files/s/tBeIE0yv -O pci-api.tar.gz
+wget https://www.genspark.ai/api/files/s/BWcmopJe -O pci-api.tar.gz
 tar -xzf pci-api.tar.gz
 cd webapp
 
