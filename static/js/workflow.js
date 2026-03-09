@@ -61,6 +61,7 @@ function toggleStep(stepNum) {
     const checkbox = document.getElementById(`step${stepNum}`);
     checkbox.checked = !checkbox.checked;
     updateStepCard(stepNum);
+    updateStepConfig(stepNum);
 }
 
 // 단계 직접 선택
@@ -68,6 +69,32 @@ function selectStep(stepNum) {
     const checkbox = document.getElementById(`step${stepNum}`);
     checkbox.checked = true;
     updateStepCard(stepNum);
+    updateStepConfig(stepNum);
+}
+
+// 단계별 설정 폼 표시/숨김
+function updateStepConfig(stepNum) {
+    const checkbox = document.getElementById(`step${stepNum}`);
+    const isChecked = checkbox.checked;
+    
+    // Step 5: SMILES 입력 폼
+    if (stepNum === 5) {
+        const step5Config = document.getElementById('step5-config');
+        if (step5Config) {
+            step5Config.style.display = isChecked ? 'block' : 'none';
+        }
+    }
+    
+    // Step 6: FooDB 옵션 폼
+    if (stepNum === 6) {
+        const step6ConfigMode = document.getElementById('step6-config-mode');
+        const step6ConfigTop = document.getElementById('step6-config-top');
+        const step6ConfigThreshold = document.getElementById('step6-config-threshold');
+        
+        if (step6ConfigMode) step6ConfigMode.style.display = isChecked ? 'block' : 'none';
+        if (step6ConfigTop) step6ConfigTop.style.display = isChecked ? 'block' : 'none';
+        if (step6ConfigThreshold) step6ConfigThreshold.style.display = isChecked ? 'block' : 'none';
+    }
 }
 
 // 단계 카드 업데이트
@@ -88,8 +115,9 @@ async function executeWorkflow() {
     const steps = [
         { id: 'step2', name: '특성 변환', fn: executeFeatureTransform },
         { id: 'step3', name: '모델 학습', fn: executeModelTraining },
-        { id: 'step4', name: '예측', fn: executePrediction },
-        { id: 'step5', name: 'SHAP 분석', fn: executeSHAPAnalysis }
+        { id: 'step4', name: 'SHAP 분석', fn: executeSHAPAnalysis },
+        { id: 'step5', name: 'SMILES 예측', fn: executeSMILESPrediction },
+        { id: 'step6', name: 'FooDB 예측', fn: executeFooDBPrediction }
     ];
 
     const selectedSteps = steps.filter(step => document.getElementById(step.id).checked);
@@ -106,11 +134,11 @@ async function executeWorkflow() {
         return;
     }
 
-    // Step 4 선택 시 SMILES 필수
-    if (selectedSteps.find(s => s.id === 'step4')) {
+    // Step 5 선택 시 SMILES 필수
+    if (selectedSteps.find(s => s.id === 'step5')) {
         const smiles = document.getElementById('smiles-input').value.trim();
         if (!smiles) {
-            alert('예측을 위해 SMILES 리스트를 입력해주세요.');
+            alert('SMILES 예측을 위해 SMILES 리스트를 입력해주세요.');
             return;
         }
     }
@@ -334,33 +362,7 @@ async function executeModelTraining() {
     return response.data;
 }
 
-// Step 4: 예측
-async function executePrediction() {
-    const smilesInput = document.getElementById('smiles-input').value.trim();
-    const smilesList = smilesInput.split('\n').map(s => s.trim()).filter(s => s);
-    
-    // 모델 선택
-    let modelId = document.getElementById('model-select').value;
-    
-    // AUTO이거나 Step 3에서 방금 학습한 경우
-    if (modelId === 'AUTO' || !modelId) {
-        if (lastTrainedModel) {
-            modelId = lastTrainedModel;
-        } else {
-            throw new Error('사용할 모델이 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택하세요.');
-        }
-    }
-    
-    const response = await axios.post(`${API_BASE_URL}/api/models/predict`, {
-        smiles_list: smilesList,
-        model_id: modelId,
-        feature_type: 'fingerprint'
-    });
-    
-    return response.data;
-}
-
-// Step 5: SHAP 분석
+// Step 4: SHAP 분석
 async function executeSHAPAnalysis() {
     // 모델 선택
     let modelId = document.getElementById('model-select').value;
@@ -381,6 +383,79 @@ async function executeSHAPAnalysis() {
     });
     
     return response.data;
+}
+
+// Step 5: SMILES 직접 입력 예측
+async function executeSMILESPrediction() {
+    const smilesInput = document.getElementById('smiles-input').value.trim();
+    const smilesList = smilesInput.split('\n').map(s => s.trim()).filter(s => s);
+    
+    // 모델 선택
+    let modelId = document.getElementById('model-select').value;
+    
+    // AUTO이거나 Step 3에서 방금 학습한 경우
+    if (modelId === 'AUTO' || !modelId) {
+        if (lastTrainedModel) {
+            modelId = lastTrainedModel;
+        } else {
+            throw new Error('사용할 모델이 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택하세요.');
+        }
+    }
+    
+    const response = await axios.post(`${API_BASE_URL}/api/foodb/predict-smiles`, {
+        smiles_list: smilesList,
+        model_id: modelId
+    });
+    
+    return {
+        message: `${response.data.predictions.length}개 화합물 예측 완료`,
+        model_id: modelId,
+        count: response.data.predictions.length,
+        active_count: response.data.predictions.filter(p => p.prediction === 1).length,
+        inactive_count: response.data.predictions.filter(p => p.prediction === 0).length,
+        predictions: response.data.predictions.slice(0, 10) // 상위 10개만 표시
+    };
+}
+
+// Step 6: FooDB 전체 예측
+async function executeFooDBPrediction() {
+    // 모델 선택
+    let modelId = document.getElementById('model-select').value;
+    
+    // AUTO이거나 Step 3에서 방금 학습한 경우
+    if (modelId === 'AUTO' || !modelId) {
+        if (lastTrainedModel) {
+            modelId = lastTrainedModel;
+        } else {
+            throw new Error('사용할 모델이 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택하세요.');
+        }
+    }
+    
+    const foodbMode = document.getElementById('foodb-mode').value;
+    const topN = parseInt(document.getElementById('foodb-top-n').value) || 100;
+    const threshold = parseFloat(document.getElementById('foodb-threshold').value) || 0.5;
+    
+    // FooDB CSV가 업로드되어 있는지 확인
+    // (여기서는 간단히 API 호출만 수행)
+    
+    const response = await axios.post(`${API_BASE_URL}/api/foodb/predict`, {
+        model_id: modelId,
+        top_n: foodbMode === 'top' ? topN : null,
+        threshold: threshold
+    });
+    
+    const predictions = response.data.predictions || [];
+    const activePredictions = predictions.filter(p => p.prediction === 1 || p.active_probability >= threshold);
+    
+    return {
+        message: `FooDB 예측 완료 (${foodbMode === 'top' ? `상위 ${topN}개` : '전체'})`,
+        model_id: modelId,
+        total_count: predictions.length,
+        active_count: activePredictions.length,
+        inactive_count: predictions.length - activePredictions.length,
+        threshold: threshold,
+        top_predictions: activePredictions.slice(0, 20) // 상위 20개만 표시
+    };
 }
 
 // 모델 목록 로드
@@ -421,13 +496,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // 체크박스 변경 시 카드 스타일 업데이트
     document.querySelectorAll('.step-checkbox').forEach((checkbox, index) => {
         checkbox.addEventListener('change', function() {
-            updateStepCard(index + 1);
+            const stepNum = index + 1;
+            updateStepCard(stepNum);
+            updateStepConfig(stepNum);
+            
             // 상태 초기화
             const stepId = this.id;
-            const stepNum = stepId.replace('step', '');
             const statusElement = document.getElementById(`status${stepNum}`);
             statusElement.className = 'step-status pending';
             statusElement.innerHTML = '<i class="fas fa-circle"></i><span>대기중</span>';
         });
     });
+    
+    // FooDB 모드 변경 시 상위 N개 옵션 표시/숨김
+    const foodbModeSelect = document.getElementById('foodb-mode');
+    if (foodbModeSelect) {
+        foodbModeSelect.addEventListener('change', function() {
+            const topNGroup = document.getElementById('step6-config-top');
+            if (topNGroup) {
+                topNGroup.style.display = this.value === 'top' ? 'block' : 'none';
+            }
+        });
+    }
 });

@@ -50,12 +50,16 @@
                         <span>모델 학습</span>
                     </a>
                     <a href="#" class="nav-item" onclick="selectStep(4); return false;">
-                        <i class="fas fa-chart-line"></i>
-                        <span>예측 실행</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="selectStep(5); return false;">
                         <i class="fas fa-lightbulb"></i>
                         <span>SHAP 분석</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="selectStep(5); return false;">
+                        <i class="fas fa-flask"></i>
+                        <span>SMILES 예측</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="selectStep(6); return false;">
+                        <i class="fas fa-database"></i>
+                        <span>FooDB 예측</span>
                     </a>
                 </div>
             </nav>
@@ -134,31 +138,46 @@
                             </div>
                         </div>
 
-                        <!-- Step 4 -->
+                        <!-- Step 4: SHAP Analysis -->
                         <div class="step-card" onclick="toggleStep(4)">
                             <input type="checkbox" id="step4" class="step-checkbox" onclick="event.stopPropagation();">
                             <div class="step-number">4</div>
                             <div class="step-icon">
-                                <i class="fas fa-chart-line"></i>
+                                <i class="fas fa-lightbulb"></i>
                             </div>
-                            <h3 class="step-title">예측</h3>
-                            <p class="step-subtitle">활성/비활성 분류</p>
+                            <h3 class="step-title">SHAP 분석</h3>
+                            <p class="step-subtitle">특성 중요도</p>
                             <div class="step-status pending" id="status4">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
                             </div>
                         </div>
 
-                        <!-- Step 5 -->
+                        <!-- Step 5: SMILES Prediction -->
                         <div class="step-card" onclick="toggleStep(5)">
                             <input type="checkbox" id="step5" class="step-checkbox" onclick="event.stopPropagation();">
                             <div class="step-number">5</div>
                             <div class="step-icon">
-                                <i class="fas fa-lightbulb"></i>
+                                <i class="fas fa-flask"></i>
                             </div>
-                            <h3 class="step-title">SHAP 분석</h3>
-                            <p class="step-subtitle">특성 중요도</p>
+                            <h3 class="step-title">SMILES 예측</h3>
+                            <p class="step-subtitle">직접 입력</p>
                             <div class="step-status pending" id="status5">
+                                <i class="fas fa-circle"></i>
+                                <span>대기중</span>
+                            </div>
+                        </div>
+
+                        <!-- Step 6: FooDB Prediction -->
+                        <div class="step-card" onclick="toggleStep(6)">
+                            <input type="checkbox" id="step6" class="step-checkbox" onclick="event.stopPropagation();">
+                            <div class="step-number">6</div>
+                            <div class="step-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <h3 class="step-title">FooDB 예측</h3>
+                            <p class="step-subtitle">전체 화합물</p>
+                            <div class="step-status pending" id="status6">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
                             </div>
@@ -196,9 +215,9 @@
                             </div>
                         </div>
 
-                        <!-- Step 2-5: Select protein -->
+                        <!-- Step 2-6: Select protein -->
                         <div class="form-group" id="step2-config">
-                            <label class="form-label">Step 2-5: 분석할 단백질 선택</label>
+                            <label class="form-label">Step 2-6: 분석할 단백질 선택</label>
                             <select id="protein-name" class="form-select" disabled>
                                 <option value="">먼저 데이터를 수집해주세요</option>
                             </select>
@@ -262,21 +281,49 @@
                             <input type="number" id="neg-threshold" class="form-input" value="20000">
                         </div>
 
-                        <!-- SMILES Input (Full Width) -->
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label class="form-label">SMILES 리스트 (Step 4)</label>
-                            <textarea id="smiles-input" class="form-textarea" rows="4" placeholder="한 줄에 하나씩 입력&#10;예:&#10;CCO&#10;CC(=O)O&#10;c1ccccc1"></textarea>
-                            <span class="form-hint">Step 4 선택 시 필수</span>
-                        </div>
-
                         <!-- Model Selection -->
                         <div class="form-group" style="grid-column: 1 / -1;">
-                            <label class="form-label">Step 4-5: 사용할 모델</label>
+                            <label class="form-label">Step 4-6: 사용할 모델</label>
                             <select id="model-select" class="form-select">
                                 <option value="AUTO">자동 (방금 학습한 모델 사용)</option>
                                 <option value="" disabled>--- 또는 기존 모델 선택 ---</option>
                             </select>
                             <span class="form-hint">Step 3을 선택하면 자동으로 새 모델 사용</span>
+                        </div>
+
+                        <!-- SMILES Input (Step 5) -->
+                        <div class="form-group" id="step5-config" style="grid-column: 1 / -1; display: none;">
+                            <label class="form-label">
+                                <i class="fas fa-flask"></i>
+                                Step 5: SMILES 리스트 (직접 입력)
+                            </label>
+                            <textarea id="smiles-input" class="form-textarea" rows="4" placeholder="한 줄에 하나씩 입력&#10;예:&#10;CCO&#10;CC(=O)O&#10;c1ccccc1"></textarea>
+                            <span class="form-hint">Step 5 선택 시 필수</span>
+                        </div>
+
+                        <!-- FooDB Options (Step 6) -->
+                        <div class="form-group" id="step6-config-mode" style="display: none;">
+                            <label class="form-label">
+                                <i class="fas fa-database"></i>
+                                Step 6: FooDB 예측 모드
+                            </label>
+                            <select id="foodb-mode" class="form-select">
+                                <option value="top">상위 N개만 예측</option>
+                                <option value="all">전체 예측 (시간 소요)</option>
+                            </select>
+                            <span class="form-hint">전체 예측은 수백~수천 개 화합물 처리</span>
+                        </div>
+
+                        <div class="form-group" id="step6-config-top" style="display: none;">
+                            <label class="form-label">상위 N개</label>
+                            <input type="number" id="foodb-top-n" class="form-input" value="100" min="1" max="10000">
+                            <span class="form-hint">활성 확률 높은 순서로 필터링</span>
+                        </div>
+
+                        <div class="form-group" id="step6-config-threshold" style="display: none;">
+                            <label class="form-label">활성 확률 임계값</label>
+                            <input type="number" id="foodb-threshold" class="form-input" value="0.5" min="0" max="1" step="0.05">
+                            <span class="form-hint">이 확률 이상인 화합물만 표시 (0~1)</span>
                         </div>
                     </div>
 
