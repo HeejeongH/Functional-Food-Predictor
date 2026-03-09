@@ -24,6 +24,7 @@ services:
       - ./shap_outputs:/app/shap_outputs
       - ./food_predictions:/app/food_predictions
       - ./descriptor_selection.csv:/app/descriptor_selection.csv:ro
+      - ./static:/app/static  # Static files (HTML, CSS, JS) for live reload
     
     # Environment variables
     environment:
