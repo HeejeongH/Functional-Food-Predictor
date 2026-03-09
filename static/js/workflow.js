@@ -74,6 +74,12 @@ function selectStep(stepNum) {
 
 // 단계별 설정 폼 표시/숨김
 function updateStepConfig(stepNum) {
+    // Step 1: 데이터 수집 폼은 항상 표시
+    const step1Config = document.getElementById('step1-config');
+    if (step1Config) {
+        step1Config.style.display = 'block'; // 항상 표시
+    }
+    
     // Step 5와 Step 6 체크 상태 확인
     const step5Checkbox = document.getElementById('step5');
     const step6Checkbox = document.getElementById('step6');
