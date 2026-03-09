@@ -300,6 +300,14 @@ async def predict_foodb_compounds(
     - **batch_size**: 배치 크기 (기본값: 100)
     - **top_n**: 상위 N개 활성 화합물 반환 (기본값: 100)
     """
+    print(f"\n{'='*60}")
+    print(f"🔍 FooDB Prediction Request:")
+    print(f"  model_id: {model_id}")
+    print(f"  foodb_file: {foodb_file}")
+    print(f"  batch_size: {batch_size}")
+    print(f"  top_n: {top_n}")
+    print(f"{'='*60}\n")
+    
     try:
         # 모델 로드
         model_info = model_service.load_model(model_id)
