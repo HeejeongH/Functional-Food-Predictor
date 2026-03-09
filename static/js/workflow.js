@@ -74,27 +74,26 @@ function selectStep(stepNum) {
 
 // 단계별 설정 폼 표시/숨김
 function updateStepConfig(stepNum) {
-    const checkbox = document.getElementById(`step${stepNum}`);
-    const isChecked = checkbox.checked;
+    // Step 5와 Step 6 체크 상태 확인
+    const step5Checkbox = document.getElementById('step5');
+    const step6Checkbox = document.getElementById('step6');
+    const step5Checked = step5Checkbox ? step5Checkbox.checked : false;
+    const step6Checked = step6Checkbox ? step6Checkbox.checked : false;
     
-    // Step 5: SMILES 입력 폼
-    if (stepNum === 5) {
-        const step5Config = document.getElementById('step5-config');
-        if (step5Config) {
-            step5Config.style.display = isChecked ? 'block' : 'none';
-        }
+    // Step 5: SMILES 입력 폼 (Step 5만 선택되었을 때만 표시)
+    const step5Config = document.getElementById('step5-config');
+    if (step5Config) {
+        step5Config.style.display = step5Checked ? 'block' : 'none';
     }
     
-    // Step 6: FooDB 옵션 폼
-    if (stepNum === 6) {
-        const step6ConfigMode = document.getElementById('step6-config-mode');
-        const step6ConfigTop = document.getElementById('step6-config-top');
-        const step6ConfigThreshold = document.getElementById('step6-config-threshold');
-        
-        if (step6ConfigMode) step6ConfigMode.style.display = isChecked ? 'block' : 'none';
-        if (step6ConfigTop) step6ConfigTop.style.display = isChecked ? 'block' : 'none';
-        if (step6ConfigThreshold) step6ConfigThreshold.style.display = isChecked ? 'block' : 'none';
-    }
+    // Step 6: FooDB 옵션 폼 (Step 6이 선택되었을 때만 표시)
+    const step6ConfigMode = document.getElementById('step6-config-mode');
+    const step6ConfigTop = document.getElementById('step6-config-top');
+    const step6ConfigThreshold = document.getElementById('step6-config-threshold');
+    
+    if (step6ConfigMode) step6ConfigMode.style.display = step6Checked ? 'block' : 'none';
+    if (step6ConfigTop) step6ConfigTop.style.display = step6Checked ? 'block' : 'none';
+    if (step6ConfigThreshold) step6ConfigThreshold.style.display = step6Checked ? 'block' : 'none';
 }
 
 // 단계 카드 업데이트
