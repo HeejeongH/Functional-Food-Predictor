@@ -544,14 +544,33 @@ async function executeFooDBPrediction() {
     // 모델 선택
     let modelId = document.getElementById('model-select').value;
     
-    // AUTO이거나 Step 3에서 방금 학습한 경우
-    if (modelId === 'AUTO' || !modelId) {
+    // AUTO이거나 모델이 없는 경우
+    if (modelId === 'AUTO' || !modelId || modelId === '') {
+        // 1. Step 3에서 방금 학습한 모델 사용
         if (lastTrainedModel) {
             modelId = lastTrainedModel;
+            console.log('Using last trained model:', modelId);
         } else {
-            throw new Error('사용할 모델이 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택하세요.');
+            // 2. API에서 가장 최근 모델 가져오기
+            try {
+                const modelsResponse = await axios.get(`${API_BASE_URL}/api/models/list`);
+                const models = modelsResponse.data.models || [];
+                
+                if (models.length === 0) {
+                    throw new Error('사용 가능한 모델이 없습니다. Step 3을 먼저 실행해주세요.');
+                }
+                
+                // 가장 최근 모델 사용 (첫 번째 모델)
+                const firstModel = models[0];
+                modelId = typeof firstModel === 'string' ? firstModel : firstModel.model_id;
+                console.log('Using latest available model:', modelId);
+            } catch (error) {
+                throw new Error('모델을 찾을 수 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택해주세요.');
+            }
         }
     }
+    
+    console.log('Final model_id for FooDB prediction:', modelId);
     
     const foodbMode = document.getElementById('foodb-mode').value;
     const topN = parseInt(document.getElementById('foodb-top-n').value) || 100;
@@ -606,7 +625,13 @@ async function loadModelList() {
         
         if (models.length > 0) {
             options += '<option value="" disabled>--- 또는 기존 모델 선택 ---</option>';
-            options += models.map(m => `<option value="${m}">${m}</option>`).join('');
+            // 모델이 객체인 경우 model_id 추출
+            options += models.map(m => {
+                const modelId = typeof m === 'string' ? m : m.model_id;
+                const modelType = typeof m === 'object' && m.model_type ? ` (${m.model_type})` : '';
+                const accuracy = typeof m === 'object' && m.metrics?.accuracy ? ` - ${(m.metrics.accuracy * 100).toFixed(1)}%` : '';
+                return `<option value="${modelId}">${modelId}${modelType}${accuracy}</option>`;
+            }).join('');
         }
         
         select.innerHTML = options;
