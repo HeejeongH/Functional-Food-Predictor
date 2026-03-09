@@ -298,20 +298,130 @@ function formatLabel(key) {
         'roc_auc': 'ROC AUC',
         'count': '예측 수',
         'active_count': '활성 예측',
-        'inactive_count': '비활성 예측'
+        'inactive_count': '비활성 예측',
+        'top_features': '중요 특성 Top 20',
+        'shap_values_summary': 'SHAP 요약',
+        'plot_path': 'SHAP 플롯',
+        'predictions': '예측 결과',
+        'top_predictions': '상위 예측',
+        'total_count': '전체 수',
+        'threshold': '임계값'
     };
     return labels[key] || key;
 }
 
 // 값 포맷
 function formatValue(key, value) {
+    // SHAP top_features 배열
+    if (key === 'top_features' && Array.isArray(value)) {
+        return `
+            <div style="max-height: 300px; overflow-y: auto; margin-top: 0.5rem;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                    <thead>
+                        <tr style="background: var(--gray-100); border-bottom: 2px solid var(--gray-300);">
+                            <th style="padding: 0.5rem; text-align: left;">#</th>
+                            <th style="padding: 0.5rem; text-align: left;">특성</th>
+                            <th style="padding: 0.5rem; text-align: right;">중요도</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${value.map((feat, i) => `
+                            <tr style="border-bottom: 1px solid var(--gray-200);">
+                                <td style="padding: 0.5rem;">${i + 1}</td>
+                                <td style="padding: 0.5rem; font-weight: 500;">${feat.feature || 'N/A'}</td>
+                                <td style="padding: 0.5rem; text-align: right; font-family: monospace;">${(feat.importance || 0).toFixed(6)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    // SHAP summary 객체
+    if (key === 'shap_values_summary' && typeof value === 'object') {
+        return `
+            <div style="margin-top: 0.5rem;">
+                <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem; font-size: 0.875rem;">
+                    <span style="font-weight: 500;">평균 |SHAP|:</span>
+                    <span style="font-family: monospace;">${(value.mean_abs_shap || 0).toFixed(6)}</span>
+                    <span style="font-weight: 500;">최대 |SHAP|:</span>
+                    <span style="font-family: monospace;">${(value.max_abs_shap || 0).toFixed(6)}</span>
+                    <span style="font-weight: 500;">분석 샘플 수:</span>
+                    <span style="font-family: monospace;">${value.samples_analyzed || 0}</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    // SHAP plot_path
+    if (key === 'plot_path' && value) {
+        return `
+            <div style="margin-top: 0.5rem;">
+                <a href="/${value}" target="_blank" style="color: var(--primary); text-decoration: underline;">
+                    <i class="fas fa-image"></i> ${value}
+                </a>
+                <div style="margin-top: 1rem; border: 1px solid var(--gray-300); border-radius: 8px; overflow: hidden;">
+                    <img src="/${value}" alt="SHAP Plot" style="width: 100%; height: auto; display: block;">
+                </div>
+            </div>
+        `;
+    }
+    
+    // Predictions 배열
+    if ((key === 'predictions' || key === 'top_predictions') && Array.isArray(value)) {
+        return `
+            <div style="max-height: 400px; overflow-y: auto; margin-top: 0.5rem;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                    <thead>
+                        <tr style="background: var(--gray-100); border-bottom: 2px solid var(--gray-300);">
+                            <th style="padding: 0.5rem; text-align: left;">#</th>
+                            <th style="padding: 0.5rem; text-align: left;">SMILES</th>
+                            <th style="padding: 0.5rem; text-align: center;">예측</th>
+                            <th style="padding: 0.5rem; text-align: right;">활성 확률</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${value.map((pred, i) => `
+                            <tr style="border-bottom: 1px solid var(--gray-200);">
+                                <td style="padding: 0.5rem;">${i + 1}</td>
+                                <td style="padding: 0.5rem; font-family: monospace; font-size: 0.75rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pred.smiles || 'N/A'}</td>
+                                <td style="padding: 0.5rem; text-align: center;">
+                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; 
+                                        ${pred.prediction === 1 ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;'}">
+                                        ${pred.prediction === 1 ? '활성' : '비활성'}
+                                    </span>
+                                </td>
+                                <td style="padding: 0.5rem; text-align: right; font-family: monospace;">
+                                    ${((pred.active_probability || 0) * 100).toFixed(2)}%
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    // 기존 포맷팅
     if (key.includes('accuracy') || key.includes('precision') || key.includes('recall') || 
         key.includes('f1') || key.includes('roc') || key.includes('auc')) {
         return `${(value * 100).toFixed(2)}%`;
     }
+    
+    if (key === 'threshold' && typeof value === 'number') {
+        return value.toFixed(2);
+    }
+    
     if (typeof value === 'number') {
         return value.toLocaleString();
     }
+    
+    // 객체/배열이 그대로 넘어온 경우
+    if (typeof value === 'object') {
+        return JSON.stringify(value, null, 2);
+    }
+    
     return value;
 }
 
