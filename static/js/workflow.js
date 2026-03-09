@@ -545,16 +545,29 @@ async function executeFooDBPrediction() {
     const threshold = parseFloat(document.getElementById('foodb-threshold').value) || 0.5;
     
     // FooDB CSV가 업로드되어 있는지 확인
-    // (여기서는 간단히 API 호출만 수행)
+    // API는 query parameters를 사용함
     
-    const response = await axios.post(`${API_BASE_URL}/api/foodb/predict`, {
-        model_id: modelId,
-        top_n: foodbMode === 'top' ? topN : null,
-        threshold: threshold
+    const response = await axios.post(`${API_BASE_URL}/api/foodb/predict`, null, {
+        params: {
+            model_id: modelId,
+            foodb_file: 'saved_data/FooDB/foodb_compounds.csv',
+            batch_size: 100,
+            top_n: foodbMode === 'top' ? topN : 10000  // 전체 모드는 큰 값
+        }
     });
     
     const predictions = response.data.predictions || [];
-    const activePredictions = predictions.filter(p => p.prediction === 1 || p.active_probability >= threshold);
+    // threshold로 필터링
+    const activePredictions = predictions.filter(p => 
+        p.prediction === 1 && (p.active_probability || p.probability_active) >= threshold
+    );
+    
+    // SMILES 예측 형식으로 변환
+    const formattedPredictions = activePredictions.map(p => ({
+        smiles: p.smiles,
+        prediction: p.prediction,
+        active_probability: p.probability_active || p.active_probability
+    }));
     
     return {
         message: `FooDB 예측 완료 (${foodbMode === 'top' ? `상위 ${topN}개` : '전체'})`,
@@ -563,7 +576,7 @@ async function executeFooDBPrediction() {
         active_count: activePredictions.length,
         inactive_count: predictions.length - activePredictions.length,
         threshold: threshold,
-        top_predictions: activePredictions.slice(0, 20) // 상위 20개만 표시
+        top_predictions: formattedPredictions.slice(0, 20) // 상위 20개만 표시
     };
 }
 
