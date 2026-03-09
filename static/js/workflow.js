@@ -178,11 +178,24 @@ async function executeWorkflow() {
 
         } catch (error) {
             // 실패 처리
-            const errorMsg = error.response?.data?.detail || error.message || '오류 발생';
+            console.error(`${step.name} 오류:`, error);
+            
+            let errorMsg = error.message || '오류 발생';
+            
+            // error.response?.data?.detail이 객체인 경우 JSON으로 변환
+            if (error.response?.data?.detail) {
+                const detail = error.response.data.detail;
+                if (typeof detail === 'object') {
+                    errorMsg = JSON.stringify(detail, null, 2);
+                } else {
+                    errorMsg = detail;
+                }
+            }
+            
             updateProgressItem(progressItem, 'failed', errorMsg);
             updateStepStatus(step.id, 'error');
             
-            alert(`${step.name} 실패: ${errorMsg}`);
+            alert(`${step.name} 실패:\n${errorMsg}`);
             break; // 실패 시 중단
         }
     }
