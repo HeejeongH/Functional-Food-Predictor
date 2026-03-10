@@ -86,6 +86,15 @@ class ModelTrainingService:
         y = df['Y'].values
         X = df.drop(['SMILES', 'Y', 'potency'], axis=1, errors='ignore').values
         
+        # 데이터 품질 경고
+        if len(X) < 100:
+            print(f"⚠️ WARNING: Very small dataset ({len(X)} samples)!")
+            print(f"   High accuracy may indicate overfitting, not real performance.")
+        
+        if X.shape[1] > len(X):
+            print(f"⚠️ WARNING: Features ({X.shape[1]}) > Samples ({len(X)})!")
+            print(f"   This significantly increases overfitting risk.")
+        
         # Train/Test 분리
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state=random_state, stratify=y
