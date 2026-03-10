@@ -588,7 +588,7 @@ async function executeFooDBPrediction() {
     const response = await axios.post(`${API_BASE_URL}/api/foodb/predict`, null, {
         params: {
             model_id: modelId,
-            foodb_file: 'saved_data/FooDB/test_compounds.csv',  // 테스트용 작은 파일
+            foodb_file: 'saved_data/FooDB/Compound.csv',  // FooDB 공식 파일명
             batch_size: 100,
             top_n: foodbMode === 'top' ? topN : 10000  // 전체 모드는 큰 값
         }
