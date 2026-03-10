@@ -276,10 +276,29 @@ function createResultCard(stepNumber, stepName, result) {
     const card = document.createElement('div');
     card.className = 'result-card fade-in';
     
-    let content = `<h4><i class="fas fa-check-circle text-green-600 mr-2"></i>${stepNumber}. ${stepName} 결과</h4>`;
+    // Step별 특화 UI
+    if (stepNumber === 6 || stepNumber === 5) {
+        // FooDB 또는 SMILES 예측 결과 - 특별한 UI
+        card.innerHTML = createPredictionResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 4) {
+        // SHAP 분석 결과 - 특별한 UI
+        card.innerHTML = createSHAPResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 3) {
+        // 모델 학습 결과 - 특별한 UI
+        card.innerHTML = createModelResultUI(stepNumber, stepName, result);
+    } else {
+        // 기본 UI
+        card.innerHTML = createDefaultResultUI(stepNumber, stepName, result);
+    }
+    
+    return card;
+}
+
+// 기본 결과 UI
+function createDefaultResultUI(stepNumber, stepName, result) {
+    let content = `<h4><i class="fas fa-check-circle" style="color: #10b981; margin-right: 0.5rem;"></i>${stepNumber}. ${stepName} 결과</h4>`;
     content += '<div class="result-grid">';
     
-    // 결과 데이터 표시
     for (const [key, value] of Object.entries(result)) {
         if (key !== 'message') {
             const label = formatLabel(key);
@@ -293,9 +312,305 @@ function createResultCard(stepNumber, stepName, result) {
     }
     
     content += '</div>';
-    card.innerHTML = content;
+    return content;
+}
+
+// 예측 결과 UI (FooDB, SMILES)
+function createPredictionResultUI(stepNumber, stepName, result) {
+    const totalCount = result.total_count || 0;
+    const activeCount = result.active_count || 0;
+    const inactiveCount = result.inactive_count || 0;
+    const filteredCount = result.filtered_count || result.top_predictions?.length || 0;
+    const threshold = result.threshold || 0.5;
+    const predictions = result.top_predictions || result.predictions || [];
     
-    return card;
+    const activePercent = totalCount > 0 ? ((activeCount / totalCount) * 100).toFixed(1) : 0;
+    const inactivePercent = totalCount > 0 ? ((inactiveCount / totalCount) * 100).toFixed(1) : 0;
+    
+    return `
+        <div style="padding: 1.5rem;">
+            <!-- 헤더 -->
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-flask" style="color: white; font-size: 24px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
+                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">모델: ${result.model_id || 'N/A'}</p>
+                </div>
+            </div>
+            
+            <!-- 통계 카드 -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <!-- 전체 화합물 -->
+                <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #d1d5db;">
+                    <div style="color: #6b7280; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">전체 화합물</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #111827;">${totalCount.toLocaleString()}</div>
+                </div>
+                
+                <!-- 활성 예측 -->
+                <div style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #86efac;">
+                    <div style="color: #166534; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">활성 예측</div>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span style="font-size: 2rem; font-weight: 700; color: #15803d;">${activeCount.toLocaleString()}</span>
+                        <span style="font-size: 1rem; color: #166534;">(${activePercent}%)</span>
+                    </div>
+                </div>
+                
+                <!-- 비활성 예측 -->
+                <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #fca5a5;">
+                    <div style="color: #991b1b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">비활성 예측</div>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span style="font-size: 2rem; font-weight: 700; color: #b91c1c;">${inactiveCount.toLocaleString()}</span>
+                        <span style="font-size: 1rem; color: #991b1b;">(${inactivePercent}%)</span>
+                    </div>
+                </div>
+                
+                <!-- 임계값 이상 -->
+                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #93c5fd;">
+                    <div style="color: #1e40af; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">임계값 ≥ ${threshold}</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #1d4ed8;">${filteredCount.toLocaleString()}</div>
+                </div>
+            </div>
+            
+            <!-- 비율 차트 -->
+            <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: white; border-radius: 12px; border: 1px solid #e5e7eb;">
+                <div style="font-weight: 600; margin-bottom: 1rem; color: #374151;">활성/비활성 비율</div>
+                <div style="display: flex; height: 40px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
+                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: ${activePercent}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                        ${activePercent > 10 ? `활성 ${activePercent}%` : ''}
+                    </div>
+                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); width: ${inactivePercent}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                        ${inactivePercent > 10 ? `비활성 ${inactivePercent}%` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 상위 예측 결과 테이블 -->
+            ${predictions.length > 0 ? `
+                <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
+                    <div style="padding: 1rem 1.25rem; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-bottom: 1px solid #e5e7eb;">
+                        <h4 style="margin: 0; font-weight: 600; color: #374151;">🏆 상위 ${predictions.length}개 화합물</h4>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.875rem;">순위</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.875rem;">SMILES</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: center; font-weight: 600; color: #6b7280; font-size: 0.875rem;">예측</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: #6b7280; font-size: 0.875rem;">활성 확률</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: #6b7280; font-size: 0.875rem;">신뢰도</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${predictions.map((pred, i) => {
+                                    const prob = (pred.active_probability || pred.probability_active || 0) * 100;
+                                    const isActive = pred.prediction === 1 || prob >= 50;
+                                    const rankBadge = i < 3 ? ['🥇', '🥈', '🥉'][i] : `#${i + 1}`;
+                                    
+                                    return `
+                                        <tr style="border-bottom: 1px solid #f3f4f6; transition: background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+                                            <td style="padding: 0.75rem 1rem;">
+                                                <span style="font-size: 1.25rem;">${rankBadge}</span>
+                                            </td>
+                                            <td style="padding: 0.75rem 1rem; font-family: 'Courier New', monospace; font-size: 0.813rem; color: #374151; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${pred.smiles || 'N/A'}">
+                                                ${pred.smiles || 'N/A'}
+                                            </td>
+                                            <td style="padding: 0.75rem 1rem; text-align: center;">
+                                                <span style="display: inline-block; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.813rem; font-weight: 600; 
+                                                    ${isActive ? 'background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); color: #15803d; border: 1px solid #86efac;' : 'background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #b91c1c; border: 1px solid #fca5a5;'}">
+                                                    ${isActive ? '✓ 활성' : '✗ 비활성'}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 0.75rem 1rem; text-align: right;">
+                                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
+                                                    <span style="font-family: 'Courier New', monospace; font-weight: 600; font-size: 0.938rem; color: ${prob >= 70 ? '#15803d' : prob >= 50 ? '#ca8a04' : '#6b7280'};">
+                                                        ${prob.toFixed(2)}%
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 0.75rem 1rem; text-align: right;">
+                                                <div style="width: 80px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                                                    <div style="width: ${prob}%; height: 100%; background: linear-gradient(90deg, 
+                                                        ${prob >= 70 ? '#10b981, #059669' : prob >= 50 ? '#f59e0b, #d97706' : '#6b7280, #4b5563'}); 
+                                                        border-radius: 4px; transition: width 0.3s ease;"></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ` : '<p style="color: #6b7280; text-align: center; padding: 2rem;">예측 결과가 없습니다.</p>'}
+        </div>
+    `;
+}
+
+// SHAP 분석 결과 UI
+function createSHAPResultUI(stepNumber, stepName, result) {
+    const topFeatures = result.top_features || [];
+    const summary = result.shap_values_summary || {};
+    const plotPath = result.plot_path || '';
+    
+    return `
+        <div style="padding: 1.5rem;">
+            <!-- 헤더 -->
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-lightbulb" style="color: white; font-size: 24px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
+                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">모델: ${result.model_id || 'N/A'}</p>
+                </div>
+            </div>
+            
+            <!-- SHAP 통계 -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 1rem; border-radius: 12px; border: 1px solid #fbbf24;">
+                    <div style="color: #92400e; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem;">평균 |SHAP|</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #b45309; font-family: monospace;">${(summary.mean_abs_shap || 0).toFixed(4)}</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); padding: 1rem; border-radius: 12px; border: 1px solid #fb923c;">
+                    <div style="color: #7c2d12; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem;">최대 |SHAP|</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #9a3412; font-family: monospace;">${(summary.max_abs_shap || 0).toFixed(4)}</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%); padding: 1rem; border-radius: 12px; border: 1px solid #a78bfa;">
+                    <div style="color: #5b21b6; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem;">분석 샘플</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #6d28d9; font-family: monospace;">${summary.samples_analyzed || 0}</div>
+                </div>
+            </div>
+            
+            ${topFeatures.length > 0 ? `
+                <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; margin-bottom: 1.5rem;">
+                    <div style="padding: 1rem 1.25rem; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-bottom: 1px solid #e5e7eb;">
+                        <h4 style="margin: 0; font-weight: 600; color: #374151;">🔍 상위 20개 중요 특성</h4>
+                    </div>
+                    <div style="overflow-x: auto; max-height: 400px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="position: sticky; top: 0; background: #f9fafb; z-index: 1;">
+                                <tr style="border-bottom: 2px solid #e5e7eb;">
+                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.875rem;">순위</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.875rem;">특성</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: #6b7280; font-size: 0.875rem;">중요도</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: #6b7280; font-size: 0.875rem;">비중</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${topFeatures.map((feat, i) => {
+                                    const importance = feat.importance || 0;
+                                    const maxImportance = topFeatures[0]?.importance || 1;
+                                    const percent = (importance / maxImportance) * 100;
+                                    
+                                    return `
+                                        <tr style="border-bottom: 1px solid #f3f4f6;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+                                            <td style="padding: 0.75rem 1rem;">
+                                                <span style="font-weight: 700; color: ${i < 3 ? '#d97706' : '#6b7280'};">
+                                                    ${i < 3 ? ['🥇', '🥈', '🥉'][i] : `#${i + 1}`}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 0.75rem 1rem; font-weight: 600; color: #374151;">
+                                                ${feat.feature || 'N/A'}
+                                            </td>
+                                            <td style="padding: 0.75rem 1rem; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #111827;">
+                                                ${importance.toFixed(6)}
+                                            </td>
+                                            <td style="padding: 0.75rem 1rem;">
+                                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
+                                                    <div style="width: 100px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                                                        <div style="width: ${percent}%; height: 100%; background: linear-gradient(90deg, #f59e0b, #d97706); border-radius: 4px;"></div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ` : ''}
+            
+            ${plotPath ? `
+                <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; padding: 1.25rem;">
+                    <h4 style="margin: 0 0 1rem 0; font-weight: 600; color: #374151;">📊 SHAP Summary Plot</h4>
+                    <div style="border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
+                        <img src="/${plotPath}" alt="SHAP Plot" style="width: 100%; height: auto; display: block;">
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// 모델 학습 결과 UI
+function createModelResultUI(stepNumber, stepName, result) {
+    const metrics = {
+        accuracy: result.accuracy || 0,
+        precision: result.precision || 0,
+        recall: result.recall || 0,
+        f1_score: result.f1_score || 0,
+        roc_auc: result.roc_auc || 0
+    };
+    
+    return `
+        <div style="padding: 1.5rem;">
+            <!-- 헤더 -->
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-brain" style="color: white; font-size: 24px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
+                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">모델: ${result.model_id || 'N/A'}</p>
+                </div>
+            </div>
+            
+            <!-- 성능 지표 -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;">
+                ${Object.entries(metrics).map(([key, value]) => {
+                    const percent = (value * 100).toFixed(1);
+                    const color = percent >= 90 ? '#10b981' : percent >= 70 ? '#f59e0b' : '#ef4444';
+                    const bgColor = percent >= 90 ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)' : 
+                                   percent >= 70 ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : 
+                                   'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+                    
+                    return `
+                        <div style="background: ${bgColor}; padding: 1.25rem; border-radius: 12px; border: 1px solid ${color}40;">
+                            <div style="color: #6b7280; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem; text-transform: uppercase;">
+                                ${formatLabel(key)}
+                            </div>
+                            <div style="font-size: 2rem; font-weight: 700; color: ${color};">
+                                ${percent}%
+                            </div>
+                            <div style="width: 100%; height: 4px; background: #fff; border-radius: 2px; margin-top: 0.5rem; overflow: hidden;">
+                                <div style="width: ${percent}%; height: 100%; background: ${color}; border-radius: 2px;"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <!-- 기타 정보 -->
+            <div style="margin-top: 1.5rem; padding: 1.25rem; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    ${Object.entries(result).filter(([key]) => !['accuracy', 'precision', 'recall', 'f1_score', 'roc_auc', 'message', 'model_id'].includes(key)).map(([key, value]) => `
+                        <div>
+                            <div style="color: #6b7280; font-size: 0.813rem; font-weight: 500; margin-bottom: 0.25rem;">
+                                ${formatLabel(key)}
+                            </div>
+                            <div style="color: #111827; font-weight: 600;">
+                                ${formatValue(key, value)}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // 라벨 포맷
