@@ -330,17 +330,18 @@ async def predict_foodb_compounds(
         
         foodb_df = pd.read_csv(foodb_file)
         
-        # SMILES 컬럼 찾기
+        # SMILES 컬럼 찾기 (FooDB 공식 컬럼 이름 포함)
         smiles_col = None
-        for col in ['canonical_smiles', 'smiles', 'SMILES', 'canonical_SMILES']:
+        for col in ['moldb_smiles', 'canonical_smiles', 'smiles', 'SMILES', 'canonical_SMILES']:
             if col in foodb_df.columns:
                 smiles_col = col
                 break
         
         if not smiles_col:
+            available_cols = ', '.join(foodb_df.columns.tolist())
             raise HTTPException(
                 status_code=400,
-                detail="FooDB CSV must contain a SMILES column"
+                detail=f"FooDB CSV must contain a SMILES column. Available columns: {available_cols}"
             )
         
         print(f"FooDB loaded: {len(foodb_df)} compounds, SMILES column: {smiles_col}")
