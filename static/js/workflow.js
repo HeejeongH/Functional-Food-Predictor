@@ -277,15 +277,21 @@ function createResultCard(stepNumber, stepName, result) {
     card.className = 'result-card fade-in';
     
     // Step별 특화 UI
-    if (stepNumber === 6 || stepNumber === 5) {
-        // FooDB 또는 SMILES 예측 결과 - 특별한 UI
-        card.innerHTML = createPredictionResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 4) {
-        // SHAP 분석 결과 - 특별한 UI
-        card.innerHTML = createSHAPResultUI(stepNumber, stepName, result);
+    if (stepNumber === 1) {
+        // 데이터 수집 결과
+        card.innerHTML = createDataCollectionResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 2) {
+        // 특성 변환 결과
+        card.innerHTML = createFeatureTransformResultUI(stepNumber, stepName, result);
     } else if (stepNumber === 3) {
-        // 모델 학습 결과 - 특별한 UI
+        // 모델 학습 결과
         card.innerHTML = createModelResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 4) {
+        // SHAP 분석 결과
+        card.innerHTML = createSHAPResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 5 || stepNumber === 6) {
+        // SMILES/FooDB 예측 결과
+        card.innerHTML = createPredictionResultUI(stepNumber, stepName, result);
     } else {
         // 기본 UI
         card.innerHTML = createDefaultResultUI(stepNumber, stepName, result);
@@ -313,6 +319,151 @@ function createDefaultResultUI(stepNumber, stepName, result) {
     
     content += '</div>';
     return content;
+}
+
+// Step 1: 데이터 수집 결과 UI
+function createDataCollectionResultUI(stepNumber, stepName, result) {
+    const totalCompounds = result.total_compounds || 0;
+    const proteinName = result.protein_name || 'N/A';
+    const activeCompounds = result.active_compounds || 0;
+    const inactiveCompounds = result.inactive_compounds || 0;
+    
+    const activePercent = totalCompounds > 0 ? ((activeCompounds / totalCompounds) * 100).toFixed(1) : 0;
+    
+    return `
+        <div style="padding: 1.5rem;">
+            <!-- 헤더 -->
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-download" style="color: white; font-size: 24px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
+                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">단백질: ${proteinName}</p>
+                </div>
+            </div>
+            
+            <!-- 통계 카드 -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <!-- 총 화합물 -->
+                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #93c5fd;">
+                    <div style="color: #1e40af; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">총 화합물</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #1d4ed8;">${totalCompounds.toLocaleString()}</div>
+                </div>
+                
+                <!-- 활성 화합물 -->
+                <div style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #86efac;">
+                    <div style="color: #166534; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">활성 화합물</div>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span style="font-size: 2rem; font-weight: 700; color: #15803d;">${activeCompounds.toLocaleString()}</span>
+                        <span style="font-size: 1rem; color: #166534;">(${activePercent}%)</span>
+                    </div>
+                </div>
+                
+                <!-- 비활성 화합물 -->
+                <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #fca5a5;">
+                    <div style="color: #991b1b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">비활성 화합물</div>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span style="font-size: 2rem; font-weight: 700; color: #b91c1c;">${inactiveCompounds.toLocaleString()}</span>
+                        <span style="font-size: 1rem; color: #991b1b;">(${(100 - activePercent).toFixed(1)}%)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 데이터 출처 -->
+            <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <i class="fas fa-database" style="color: #6b7280;"></i>
+                    <h4 style="margin: 0; font-weight: 600; color: #374151;">데이터 출처</h4>
+                </div>
+                <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.75rem 1.5rem; font-size: 0.875rem;">
+                    <span style="color: #6b7280; font-weight: 500;">표준 타입:</span>
+                    <span style="color: #111827;">${result.standard_type || 'IC50'}</span>
+                    <span style="color: #6b7280; font-weight: 500;">데이터베이스:</span>
+                    <span style="color: #111827;">ChEMBL / BindingDB</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Step 2: 특성 변환 결과 UI
+function createFeatureTransformResultUI(stepNumber, stepName, result) {
+    const proteinName = result.protein_name || 'N/A';
+    const totalFeatures = result.feature_count || 0;
+    const fingerprintSize = result.fingerprint_size || 0;
+    const descriptorCount = result.descriptor_count || 0;
+    
+    return `
+        <div style="padding: 1.5rem;">
+            <!-- 헤더 -->
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-cogs" style="color: white; font-size: 24px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
+                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">단백질: ${proteinName}</p>
+                </div>
+            </div>
+            
+            <!-- 특성 통계 -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <!-- Fingerprint -->
+                <div style="background: linear-gradient(135deg, #fae8ff 0%, #f3e8ff 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #d8b4fe;">
+                    <div style="color: #6b21a8; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Fingerprint</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #7c3aed;">${fingerprintSize.toLocaleString()}</div>
+                    <div style="color: #6b21a8; font-size: 0.75rem; margin-top: 0.25rem;">${result.fingerprint_type || 'MACCS'}</div>
+                </div>
+                
+                <!-- Descriptor -->
+                <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #a5b4fc;">
+                    <div style="color: #3730a3; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Descriptor</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #4f46e5;">${descriptorCount.toLocaleString()}</div>
+                    <div style="color: #3730a3; font-size: 0.75rem; margin-top: 0.25rem;">선택된 특성</div>
+                </div>
+                
+                <!-- 총 특성 -->
+                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #93c5fd;">
+                    <div style="color: #1e40af; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">총 특성</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #1d4ed8;">${totalFeatures.toLocaleString()}</div>
+                    <div style="color: #1e40af; font-size: 0.75rem; margin-top: 0.25rem;">${fingerprintSize} + ${descriptorCount}</div>
+                </div>
+            </div>
+            
+            <!-- 화합물 정보 -->
+            <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <i class="fas fa-flask" style="color: #6b7280;"></i>
+                    <h4 style="margin: 0; font-weight: 600; color: #374151;">화합물 통계</h4>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                    <div>
+                        <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">총 화합물</div>
+                        <div style="color: #111827; font-weight: 600; font-size: 1.25rem;">${(result.total_compounds || 0).toLocaleString()}</div>
+                    </div>
+                    <div>
+                        <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">활성 화합물</div>
+                        <div style="color: #15803d; font-weight: 600; font-size: 1.25rem;">${(result.active_compounds || 0).toLocaleString()}</div>
+                    </div>
+                    <div>
+                        <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">비활성 화합물</div>
+                        <div style="color: #b91c1c; font-weight: 600; font-size: 1.25rem;">${(result.inactive_compounds || 0).toLocaleString()}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 출력 파일 -->
+            ${result.output_file ? `
+                <div style="margin-top: 1rem; padding: 1rem; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #6b7280; font-size: 0.875rem;">
+                        <i class="fas fa-file-csv"></i>
+                        <span>출력 파일: <strong style="color: #111827;">${result.output_file}</strong></span>
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
 
 // 예측 결과 UI (FooDB, SMILES)
