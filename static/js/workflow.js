@@ -389,10 +389,15 @@ function createDataCollectionResultUI(stepNumber, stepName, result) {
 
 // Step 2: 특성 변환 결과 UI
 function createFeatureTransformResultUI(stepNumber, stepName, result) {
+    console.log('Step 2 result data:', result);
+    
     const proteinName = result.protein_name || 'N/A';
-    const totalFeatures = result.feature_count || 0;
+    const totalFeatures = result.feature_count || result.total_features || 0;
     const fingerprintSize = result.fingerprint_size || 0;
     const descriptorCount = result.descriptor_count || 0;
+    const totalCompounds = result.total_compounds || 0;
+    const activeCompounds = result.active_compounds || 0;
+    const inactiveCompounds = result.inactive_compounds || 0;
     
     return `
         <div style="padding: 1.5rem;">
@@ -432,26 +437,28 @@ function createFeatureTransformResultUI(stepNumber, stepName, result) {
             </div>
             
             <!-- 화합물 정보 -->
-            <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                    <i class="fas fa-flask" style="color: #6b7280;"></i>
-                    <h4 style="margin: 0; font-weight: 600; color: #374151;">화합물 통계</h4>
+            ${(totalCompounds > 0 || activeCompounds > 0 || inactiveCompounds > 0) ? `
+                <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                        <i class="fas fa-flask" style="color: #6b7280;"></i>
+                        <h4 style="margin: 0; font-weight: 600; color: #374151;">화합물 통계</h4>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                        <div>
+                            <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">총 화합물</div>
+                            <div style="color: #111827; font-weight: 600; font-size: 1.25rem;">${totalCompounds.toLocaleString()}</div>
+                        </div>
+                        <div>
+                            <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">활성 화합물</div>
+                            <div style="color: #15803d; font-weight: 600; font-size: 1.25rem;">${activeCompounds.toLocaleString()}</div>
+                        </div>
+                        <div>
+                            <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">비활성 화합물</div>
+                            <div style="color: #b91c1c; font-weight: 600; font-size: 1.25rem;">${inactiveCompounds.toLocaleString()}</div>
+                        </div>
+                    </div>
                 </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
-                    <div>
-                        <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">총 화합물</div>
-                        <div style="color: #111827; font-weight: 600; font-size: 1.25rem;">${(result.total_compounds || 0).toLocaleString()}</div>
-                    </div>
-                    <div>
-                        <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">활성 화합물</div>
-                        <div style="color: #15803d; font-weight: 600; font-size: 1.25rem;">${(result.active_compounds || 0).toLocaleString()}</div>
-                    </div>
-                    <div>
-                        <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">비활성 화합물</div>
-                        <div style="color: #b91c1c; font-weight: 600; font-size: 1.25rem;">${(result.inactive_compounds || 0).toLocaleString()}</div>
-                    </div>
-                </div>
-            </div>
+            ` : ''}
             
             <!-- 출력 파일 -->
             ${result.output_file ? `
@@ -699,6 +706,8 @@ function createSHAPResultUI(stepNumber, stepName, result) {
 
 // 모델 학습 결과 UI
 function createModelResultUI(stepNumber, stepName, result) {
+    console.log('Step 3 result data:', result);
+    
     const metrics = {
         accuracy: result.accuracy || 0,
         precision: result.precision || 0,
