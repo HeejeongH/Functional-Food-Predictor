@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCI Prediction - 단백질-화합물 상호작용 예측</title>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-flask"></i>
+                    </div>
+                    <span class="logo-text">PCI Prediction</span>
+                </a>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item active">
+                        <i class="fas fa-th-large"></i>
+                        <span>워크플로우</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="window.open('/docs', '_blank'); return false;">
+                        <i class="fas fa-book"></i>
+                        <span>API 문서</span>
+                    </a>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Quick Actions</div>
+                    <a href="#" class="nav-item" onclick="selectStep(1); return false;">
+                        <i class="fas fa-download"></i>
+                        <span>데이터 수집</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="selectStep(2); return false;">
+                        <i class="fas fa-cogs"></i>
+                        <span>특성 변환</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="selectStep(3); return false;">
+                        <i class="fas fa-brain"></i>
+                        <span>모델 학습</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="selectStep(4); return false;">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>SHAP 분석</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="selectStep(5); return false;">
+                        <i class="fas fa-flask"></i>
+                        <span>SMILES 예측</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="selectStep(6); return false;">
+                        <i class="fas fa-database"></i>
+                        <span>FooDB 예측</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            
+            <!-- Topbar -->
+            <header class="topbar">
+                <h1 class="topbar-title">통합 워크플로우</h1>
+                <div class="topbar-actions">
+                    <div class="status-badge">
+                        <div class="status-dot"></div>
+                        <span>시스템 정상</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                
+                <!-- Workflow Steps Selection -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-tasks"></i>
+                            실행할 단계 선택
+                        </h2>
+                        <p class="card-description">필요한 단계를 선택하고 한 번에 실행하세요</p>
+                    </div>
+                    
+                    <div class="steps-grid">
+                        <!-- Step 1 -->
+                        <div class="step-card" onclick="toggleStep(1)">
+                            <input type="checkbox" id="step1" class="step-checkbox" onclick="event.stopPropagation();">
+                            <div class="step-number">1</div>
+                            <div class="step-icon">
+                                <i class="fas fa-download"></i>
+                            </div>
+                            <h3 class="step-title">데이터 수집</h3>
+                            <p class="step-subtitle">ChEMBL/BindingDB</p>
+                            <div class="step-status pending" id="status1">
+                                <i class="fas fa-circle"></i>
+                                <span>대기중</span>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="step-card" onclick="toggleStep(2)">
+                            <input type="checkbox" id="step2" class="step-checkbox" onclick="event.stopPropagation();">
+                            <div class="step-number">2</div>
+                            <div class="step-icon">
+                                <i class="fas fa-cogs"></i>
+                            </div>
+                            <h3 class="step-title">특성 변환</h3>
+                            <p class="step-subtitle">Fingerprint + Descriptor</p>
+                            <div class="step-status pending" id="status2">
+                                <i class="fas fa-circle"></i>
+                                <span>대기중</span>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="step-card" onclick="toggleStep(3)">
+                            <input type="checkbox" id="step3" class="step-checkbox" onclick="event.stopPropagation();">
+                            <div class="step-number">3</div>
+                            <div class="step-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h3 class="step-title">모델 학습</h3>
+                            <p class="step-subtitle">XGBoost/LightGBM</p>
+                            <div class="step-status pending" id="status3">
+                                <i class="fas fa-circle"></i>
+                                <span>대기중</span>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: SHAP Analysis -->
+                        <div class="step-card" onclick="toggleStep(4)">
+                            <input type="checkbox" id="step4" class="step-checkbox" onclick="event.stopPropagation();">
+                            <div class="step-number">4</div>
+                            <div class="step-icon">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <h3 class="step-title">SHAP 분석</h3>
+                            <p class="step-subtitle">특성 중요도</p>
+                            <div class="step-status pending" id="status4">
+                                <i class="fas fa-circle"></i>
+                                <span>대기중</span>
+                            </div>
+                        </div>
+
+                        <!-- Step 5: SMILES Prediction -->
+                        <div class="step-card" onclick="toggleStep(5)">
+                            <input type="checkbox" id="step5" class="step-checkbox" onclick="event.stopPropagation();">
+                            <div class="step-number">5</div>
+                            <div class="step-icon">
+                                <i class="fas fa-flask"></i>
+                            </div>
+                            <h3 class="step-title">SMILES 예측</h3>
+                            <p class="step-subtitle">직접 입력</p>
+                            <div class="step-status pending" id="status5">
+                                <i class="fas fa-circle"></i>
+                                <span>대기중</span>
+                            </div>
+                        </div>
+
+                        <!-- Step 6: FooDB Prediction -->
+                        <div class="step-card" onclick="toggleStep(6)">
+                            <input type="checkbox" id="step6" class="step-checkbox" onclick="event.stopPropagation();">
+                            <div class="step-number">6</div>
+                            <div class="step-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <h3 class="step-title">FooDB 예측</h3>
+                            <p class="step-subtitle">전체 화합물</p>
+                            <div class="step-status pending" id="status6">
+                                <i class="fas fa-circle"></i>
+                                <span>대기중</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Form -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-sliders-h"></i>
+                            설정
+                        </h2>
+                        <p class="card-description">워크플로우 실행에 필요한 파라미터를 입력하세요</p>
+                    </div>
+
+                    <div class="form-grid">
+                        <!-- Step 1: Collect proteins -->
+                        <div class="form-group" style="grid-column: 1 / -1;" id="step1-config">
+                            <label class="form-label">Step 1: 수집할 단백질 리스트</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="target-genes" class="form-input" placeholder="예: PDE4, PDE5, FTO (쉼표로 구분)" style="flex: 1;">
+                                <button type="button" onclick="collectData()" class="btn btn-primary" id="collect-btn">
+                                    <i class="fas fa-download"></i>
+                                    데이터 수집
+                                </button>
+                            </div>
+                            <span class="form-hint">먼저 단백질 데이터를 수집하세요</span>
+                            <div id="collected-proteins" class="hidden" style="margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: var(--radius-md);">
+                                <div style="font-size: 0.875rem; font-weight: 600; color: var(--success); margin-bottom: 0.5rem;">
+                                    <i class="fas fa-check-circle"></i> 수집 완료
+                                </div>
+                                <div id="collected-proteins-list" style="font-size: 0.875rem; color: var(--gray-700);"></div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2-6: Select protein -->
+                        <div class="form-group" id="step2-config">
+                            <label class="form-label">Step 2-6: 분석할 단백질 선택</label>
+                            <select id="protein-name" class="form-select" disabled>
+                                <option value="">먼저 데이터를 수집해주세요</option>
+                            </select>
+                            <span class="form-hint">수집된 단백질 중 선택</span>
+                        </div>
+
+                        <!-- Fingerprint Type -->
+                        <div class="form-group">
+                            <label class="form-label">Fingerprint 타입</label>
+                            <select id="fingerprint-type" class="form-select">
+                                <option value="MACCS">MACCS (167비트 - 권장)</option>
+                                <option value="ECFP4">ECFP4 (1024비트)</option>
+                                <option value="MORGAN">MORGAN (1024비트)</option>
+                            </select>
+                            <span class="form-hint">Step 2에서 사용</span>
+                        </div>
+
+                        <!-- Dataset Ratio -->
+                        <div class="form-group">
+                            <label class="form-label">데이터셋 비율</label>
+                            <select id="dataset-ratio" class="form-select">
+                                <option value="5x">5x (1:5)</option>
+                                <option value="10x">10x (1:10)</option>
+                                <option value="20x" selected>20x (1:20)</option>
+                            </select>
+                            <span class="form-hint">활성:비활성 비율</span>
+                        </div>
+
+                        <!-- Descriptor Dimension -->
+                        <div class="form-group">
+                            <label class="form-label">Descriptor 차원</label>
+                            <select id="ignore3d" class="form-select">
+                                <option value="true" selected>2D만 사용</option>
+                                <option value="false">3D 포함</option>
+                            </select>
+                            <span class="form-hint">2D가 더 빠릅니다</span>
+                        </div>
+
+                        <!-- Model Type -->
+                        <div class="form-group">
+                            <label class="form-label">모델 타입 (Step 3)</label>
+                            <select id="model-type" class="form-select">
+                                <option value="XGBoost" selected>XGBoost (권장)</option>
+                                <option value="LightGBM">LightGBM</option>
+                                <option value="CatBoost">CatBoost</option>
+                                <option value="RandomForest">RandomForest</option>
+                                <option value="TabPFN">TabPFN (Few-shot 학습 전문 - 소량 데이터 최적화)</option>
+                            </select>
+                            <span class="form-hint">TabPFN: 50-1000개 데이터에 최적, 빠른 학습, Hugging Face 인증 필요 (DEPLOYMENT.md 참고)</span>
+                        </div>
+
+                        <!-- Active Threshold -->
+                        <div class="form-group">
+                            <label class="form-label">활성 임계값 (nM)</label>
+                            <input type="number" id="pos-threshold" class="form-input" value="10000">
+                        </div>
+
+                        <!-- Inactive Threshold -->
+                        <div class="form-group">
+                            <label class="form-label">비활성 임계값 (nM)</label>
+                            <input type="number" id="neg-threshold" class="form-input" value="20000">
+                        </div>
+
+                        <!-- Model Selection -->
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label class="form-label">Step 4-6: 사용할 모델</label>
+                            <select id="model-select" class="form-select">
+                                <option value="AUTO">자동 (방금 학습한 모델 사용)</option>
+                                <option value="" disabled>--- 또는 기존 모델 선택 ---</option>
+                            </select>
+                            <span class="form-hint">Step 3을 선택하면 자동으로 새 모델 사용</span>
+                        </div>
+
+                        <!-- SMILES Input (Step 5) -->
+                        <div class="form-group" id="step5-config" style="grid-column: 1 / -1; display: none;">
+                            <label class="form-label">
+                                <i class="fas fa-flask"></i>
+                                Step 5: SMILES 리스트 (직접 입력)
+                            </label>
+                            <textarea id="smiles-input" class="form-textarea" rows="4" placeholder="한 줄에 하나씩 입력&#10;예:&#10;CCO&#10;CC(=O)O&#10;c1ccccc1"></textarea>
+                            <span class="form-hint">Step 5 선택 시 필수</span>
+                        </div>
+
+                        <!-- FooDB Options (Step 6) -->
+                        <div class="form-group" id="step6-config-mode" style="display: none;">
+                            <label class="form-label">
+                                <i class="fas fa-database"></i>
+                                Step 6: FooDB 예측 모드
+                            </label>
+                            <select id="foodb-mode" class="form-select">
+                                <option value="top">상위 N개만 예측</option>
+                                <option value="all">전체 예측 (시간 소요)</option>
+                            </select>
+                            <span class="form-hint">전체 예측은 수백~수천 개 화합물 처리</span>
+                        </div>
+
+                        <div class="form-group" id="step6-config-top" style="display: none;">
+                            <label class="form-label">상위 N개</label>
+                            <input type="number" id="foodb-top-n" class="form-input" value="100" min="1" max="10000">
+                            <span class="form-hint">활성 확률 높은 순서로 필터링</span>
+                        </div>
+
+                        <div class="form-group" id="step6-config-threshold" style="display: none;">
+                            <label class="form-label">활성 확률 임계값</label>
+                            <input type="number" id="foodb-threshold" class="form-input" value="0.5" min="0" max="1" step="0.05">
+                            <span class="form-hint">이 확률 이상인 화합물만 표시 (0~1)</span>
+                        </div>
+                    </div>
+
+                    <!-- Execute Button -->
+                    <div style="margin-top: 2rem; text-align: center;">
+                        <button onclick="executeWorkflow()" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play"></i>
+                            선택한 단계 실행
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Section -->
+                <div id="progress-section" class="card hidden">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            실행 진행 상황
+                        </h2>
+                    </div>
+                    <div class="progress-list" id="progress-container"></div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results-section" class="card hidden">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-check-circle"></i>
+                            실행 결과
+                        </h2>
+                    </div>
+                    <div class="results-grid" id="results-container"></div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/workflow.js?v=11"></script>
+</body>
+</html>

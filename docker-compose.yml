@@ -1,0 +1,68 @@
+# ============================================
+# PCI Prediction API - Docker Compose
+# ============================================
+# One-click deployment for protein-compound interaction prediction
+# Supports: TabPFN, XGBoost, LightGBM, CatBoost, RandomForest
+# Features: FooDB integration, SHAP analysis, 3D conformer generation
+
+version: '3.8'
+
+services:
+  pci-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pci-prediction-api
+    ports:
+      - "3000:3000"
+    
+    # Volume mounts (persist data outside container)
+    volumes:
+      - ./saved_data:/app/saved_data
+      - ./raw:/app/raw
+      - ./models_trained:/app/models_trained
+      - ./shap_outputs:/app/shap_outputs
+      - ./food_predictions:/app/food_predictions
+      - ./descriptor_selection.csv:/app/descriptor_selection.csv:ro
+      - ./static:/app/static  # Static files (HTML, CSS, JS) for live reload
+    
+    # Environment variables
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=3000
+      # TabPFN Hugging Face token (optional, set in .env file)
+      - HF_TOKEN=${HF_TOKEN:-}
+    
+    # Resource limits (adjust based on your workstation)
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'      # Limit to 8 CPU cores
+          memory: 16G      # Limit to 16GB RAM
+        reservations:
+          cpus: '2.0'      # Reserve at least 2 cores
+          memory: 4G       # Reserve at least 4GB RAM
+    
+    # Auto-restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Networks (optional, for future multi-container setup)
+networks:
+  default:
+    name: pci-network
+    driver: bridge
