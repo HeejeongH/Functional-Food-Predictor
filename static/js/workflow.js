@@ -594,11 +594,19 @@ async function executeFooDBPrediction() {
         }
     });
     
-    const predictions = response.data.predictions || [];
+    console.log('FooDB API response:', response.data);
+    
+    // 백엔드는 top_active_compounds를 리턴함
+    const predictions = response.data.top_active_compounds || [];
+    console.log('Total predictions received:', predictions.length);
+    
     // threshold로 필터링
-    const activePredictions = predictions.filter(p => 
-        p.prediction === 1 && (p.active_probability || p.probability_active) >= threshold
-    );
+    const activePredictions = predictions.filter(p => {
+        const prob = p.probability_active || p.active_probability || 0;
+        return prob >= threshold;
+    });
+    
+    console.log('After threshold filtering:', activePredictions.length);
     
     // SMILES 예측 형식으로 변환
     const formattedPredictions = activePredictions.map(p => ({
@@ -607,13 +615,26 @@ async function executeFooDBPrediction() {
         active_probability: p.probability_active || p.active_probability
     }));
     
+    // 백엔드 응답에서 전체 통계 가져오기
+    const totalCompounds = response.data.total_compounds || predictions.length;
+    const activeCount = response.data.active_compounds || 0;
+    const inactiveCount = response.data.inactive_compounds || 0;
+    
+    console.log('Statistics:', {
+        total: totalCompounds,
+        active: activeCount,
+        inactive: inactiveCount,
+        filtered: activePredictions.length
+    });
+    
     return {
-        message: `FooDB 예측 완료 (${foodbMode === 'top' ? `상위 ${topN}개` : '전체'})`,
+        message: `FooDB 예측 완료 (전체: ${totalCompounds}개, 임계값 ${threshold} 이상: ${activePredictions.length}개)`,
         model_id: modelId,
-        total_count: predictions.length,
-        active_count: activePredictions.length,
-        inactive_count: predictions.length - activePredictions.length,
+        total_count: totalCompounds,
+        active_count: activeCount,
+        inactive_count: inactiveCount,
         threshold: threshold,
+        filtered_count: activePredictions.length,
         top_predictions: formattedPredictions.slice(0, 20) // 상위 20개만 표시
     };
 }
