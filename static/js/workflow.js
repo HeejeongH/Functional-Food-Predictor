@@ -160,7 +160,8 @@ async function executeWorkflow() {
     // 각 단계 실행
     for (let i = 0; i < selectedSteps.length; i++) {
         const step = selectedSteps[i];
-        const stepNumber = steps.findIndex(s => s.id === step.id) + 1;
+        // FIX: step2는 실제로 Step 2이므로 +2를 해야 함
+        const stepNumber = steps.findIndex(s => s.id === step.id) + 2;
 
         // 진행 상황 아이템 생성
         const progressItem = createProgressItem(stepNumber, step.name, 'running');
