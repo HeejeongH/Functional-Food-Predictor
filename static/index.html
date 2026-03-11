@@ -61,6 +61,10 @@
                         <i class="fas fa-database"></i>
                         <span>FooDB 예측</span>
                     </a>
+                    <a href="#" class="nav-item" onclick="selectStep(7); return false;">
+                        <i class="fas fa-balance-scale"></i>
+                        <span>Decoy 생성</span>
+                    </a>
                 </div>
             </nav>
         </aside>
@@ -178,6 +182,21 @@
                             <h3 class="step-title">FooDB 예측</h3>
                             <p class="step-subtitle">전체 화합물</p>
                             <div class="step-status pending" id="status6">
+                                <i class="fas fa-circle"></i>
+                                <span>대기중</span>
+                            </div>
+                        </div>
+
+                        <!-- Step 7: DUD-E Decoy Generation -->
+                        <div class="step-card" onclick="toggleStep(7)">
+                            <input type="checkbox" id="step7" class="step-checkbox" onclick="event.stopPropagation();">
+                            <div class="step-number">7</div>
+                            <div class="step-icon">
+                                <i class="fas fa-balance-scale"></i>
+                            </div>
+                            <h3 class="step-title">Decoy 생성</h3>
+                            <p class="step-subtitle">DUD-E 방식</p>
+                            <div class="step-status pending" id="status7">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
                             </div>
@@ -324,6 +343,33 @@
                             <label class="form-label">활성 확률 임계값</label>
                             <input type="number" id="foodb-threshold" class="form-input" value="0.5" min="0" max="1" step="0.05">
                             <span class="form-hint">이 확률 이상인 화합물만 표시 (0~1)</span>
+                        </div>
+
+                        <!-- DUD-E Decoy Generation Options (Step 7) -->
+                        <div class="form-group" id="step7-config-ratio" style="display: none;">
+                            <label class="form-label">
+                                <i class="fas fa-balance-scale"></i>
+                                Step 7: Decoy 비율 (활성:비활성)
+                            </label>
+                            <select id="decoy-ratio" class="form-select">
+                                <option value="10">1:10 (빠른 테스트)</option>
+                                <option value="30">1:30 (균형)</option>
+                                <option value="50" selected>1:50 (권장 - DUD-E 기본)</option>
+                                <option value="100">1:100 (강력한 균형)</option>
+                            </select>
+                            <span class="form-hint">활성 화합물 1개당 비활성 화합물 개수</span>
+                        </div>
+
+                        <div class="form-group" id="step7-config-pos" style="display: none;">
+                            <label class="form-label">활성 임계값 (nM)</label>
+                            <input type="number" id="decoy-pos-threshold" class="form-input" value="10000" min="1">
+                            <span class="form-hint">이 값 이하면 활성 화합물로 분류</span>
+                        </div>
+
+                        <div class="form-group" id="step7-config-neg" style="display: none;">
+                            <label class="form-label">비활성 임계값 (nM)</label>
+                            <input type="number" id="decoy-neg-threshold" class="form-input" value="20000" min="1">
+                            <span class="form-hint">이 값 이상이면 비활성 화합물로 분류</span>
                         </div>
                     </div>
 
