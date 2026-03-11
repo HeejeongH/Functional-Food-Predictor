@@ -88,3 +88,20 @@ class SHAPAnalysisResponse(BaseModel):
 class FooDBPredictRequest(BaseModel):
     smiles_list: List[str] = Field(..., description="식품 화합물 SMILES 리스트")
     model_id: str = Field(..., description="학습된 모델 ID")
+
+class DecoyGenerationRequest(BaseModel):
+    protein_name: str = Field(..., description="타겟 단백질 이름")
+    decoy_ratio: float = Field(default=50.0, description="활성 화합물 대비 비활성 화합물 비율 (기본 50:1)")
+    pos_threshold: float = Field(default=10000, description="활성 임계값 (nM)")
+    neg_threshold: float = Field(default=20000, description="비활성 임계값 (nM)")
+    zinc_db_path: Optional[str] = Field(None, description="ZINC 데이터베이스 파일 경로 (선택적)")
+
+class DecoyGenerationResponse(BaseModel):
+    protein_name: str
+    num_actives: int
+    num_inactives_real: int
+    num_decoys_generated: int
+    total_compounds: int
+    final_ratio: str
+    output_path: str
+    message: str

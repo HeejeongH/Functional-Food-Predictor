@@ -80,11 +80,13 @@ function updateStepConfig(stepNum) {
         step1Config.style.display = 'block'; // 항상 표시
     }
     
-    // Step 5와 Step 6 체크 상태 확인
+    // Step 5, Step 6, Step 7 체크 상태 확인
     const step5Checkbox = document.getElementById('step5');
     const step6Checkbox = document.getElementById('step6');
+    const step7Checkbox = document.getElementById('step7');
     const step5Checked = step5Checkbox ? step5Checkbox.checked : false;
     const step6Checked = step6Checkbox ? step6Checkbox.checked : false;
+    const step7Checked = step7Checkbox ? step7Checkbox.checked : false;
     
     // Step 5: SMILES 입력 폼 (Step 5만 선택되었을 때만 표시)
     const step5Config = document.getElementById('step5-config');
@@ -100,6 +102,15 @@ function updateStepConfig(stepNum) {
     if (step6ConfigMode) step6ConfigMode.style.display = step6Checked ? 'block' : 'none';
     if (step6ConfigTop) step6ConfigTop.style.display = step6Checked ? 'block' : 'none';
     if (step6ConfigThreshold) step6ConfigThreshold.style.display = step6Checked ? 'block' : 'none';
+    
+    // Step 7: Decoy 생성 옵션 폼 (Step 7이 선택되었을 때만 표시)
+    const step7ConfigRatio = document.getElementById('step7-config-ratio');
+    const step7ConfigPos = document.getElementById('step7-config-pos');
+    const step7ConfigNeg = document.getElementById('step7-config-neg');
+    
+    if (step7ConfigRatio) step7ConfigRatio.style.display = step7Checked ? 'block' : 'none';
+    if (step7ConfigPos) step7ConfigPos.style.display = step7Checked ? 'block' : 'none';
+    if (step7ConfigNeg) step7ConfigNeg.style.display = step7Checked ? 'block' : 'none';
 }
 
 // 단계 카드 업데이트
@@ -122,7 +133,8 @@ async function executeWorkflow() {
         { id: 'step3', name: '모델 학습', fn: executeModelTraining },
         { id: 'step4', name: 'SHAP 분석', fn: executeSHAPAnalysis },
         { id: 'step5', name: 'SMILES 예측', fn: executeSMILESPrediction },
-        { id: 'step6', name: 'FooDB 예측', fn: executeFooDBPrediction }
+        { id: 'step6', name: 'FooDB 예측', fn: executeFooDBPrediction },
+        { id: 'step7', name: 'Decoy 생성', fn: executeDecoyGeneration }
     ];
 
     const selectedSteps = steps.filter(step => document.getElementById(step.id).checked);
@@ -293,6 +305,9 @@ function createResultCard(stepNumber, stepName, result) {
     } else if (stepNumber === 5 || stepNumber === 6) {
         // SMILES/FooDB 예측 결과
         card.innerHTML = createPredictionResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 7) {
+        // DUD-E Decoy 생성 결과
+        card.innerHTML = createDecoyGenerationResultUI(stepNumber, stepName, result);
     } else {
         // 기본 UI
         card.innerHTML = createDefaultResultUI(stepNumber, stepName, result);
@@ -1115,6 +1130,43 @@ async function executeFooDBPrediction() {
     };
 }
 
+// Step 7: DUD-E Decoy 생성
+async function executeDecoyGeneration() {
+    const proteinName = document.getElementById('protein-name').value;
+    
+    if (!proteinName || proteinName === 'none') {
+        throw new Error('단백질을 먼저 선택해주세요 (Step 1 실행 필요)');
+    }
+    
+    const decoyRatio = parseFloat(document.getElementById('decoy-ratio').value) || 50.0;
+    const posThreshold = parseFloat(document.getElementById('decoy-pos-threshold').value) || 10000;
+    const negThreshold = parseFloat(document.getElementById('decoy-neg-threshold').value) || 20000;
+    
+    const requestData = {
+        protein_name: proteinName,
+        decoy_ratio: decoyRatio,
+        pos_threshold: posThreshold,
+        neg_threshold: negThreshold
+    };
+    
+    console.log('Decoy generation request:', requestData);
+    
+    const response = await axios.post(`${API_BASE_URL}/api/decoy/generate`, requestData);
+    
+    console.log('Decoy generation response:', response.data);
+    
+    return {
+        message: response.data.message,
+        protein_name: response.data.protein_name,
+        num_actives: response.data.num_actives,
+        num_inactives_real: response.data.num_inactives_real,
+        num_decoys_generated: response.data.num_decoys_generated,
+        total_compounds: response.data.total_compounds,
+        final_ratio: response.data.final_ratio,
+        output_path: response.data.output_path
+    };
+}
+
 // 모델 목록 로드
 async function loadModelList() {
     try {
@@ -1182,3 +1234,91 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Step 7: DUD-E Decoy 생성 결과 UI
+function createDecoyGenerationResultUI(stepNumber, stepName, result) {
+    const proteinName = result.protein_name || 'N/A';
+    const numActives = result.num_actives || 0;
+    const numInactivesReal = result.num_inactives_real || 0;
+    const numDecoys = result.num_decoys_generated || 0;
+    const totalCompounds = result.total_compounds || 0;
+    const finalRatio = result.final_ratio || 'N/A';
+    
+    const decoyPercent = totalCompounds > 0 ? ((numDecoys / totalCompounds) * 100).toFixed(1) : 0;
+    const realInactivePercent = totalCompounds > 0 ? ((numInactivesReal / totalCompounds) * 100).toFixed(1) : 0;
+    const activePercent = totalCompounds > 0 ? ((numActives / totalCompounds) * 100).toFixed(1) : 0;
+    
+    return `
+        <div style="padding: 1.5rem;">
+            <!-- 헤더 -->
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-balance-scale" style="color: white; font-size: 24px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
+                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">단백질: ${proteinName} | 최종 비율: ${finalRatio}</p>
+                </div>
+            </div>
+            
+            <!-- 통계 카드 -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <!-- 활성 화합물 -->
+                <div style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #86efac;">
+                    <div style="color: #166534; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">활성 화합물</div>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span style="font-size: 2rem; font-weight: 700; color: #15803d;">${numActives.toLocaleString()}</span>
+                        <span style="font-size: 1rem; color: #166534;">(${activePercent}%)</span>
+                    </div>
+                </div>
+                
+                <!-- 비활성 (실제) -->
+                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #93c5fd;">
+                    <div style="color: #1e40af; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">비활성 (실제 DB)</div>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span style="font-size: 2rem; font-weight: 700; color: #1d4ed8;">${numInactivesReal.toLocaleString()}</span>
+                        <span style="font-size: 1rem; color: #1e40af;">(${realInactivePercent}%)</span>
+                    </div>
+                </div>
+                
+                <!-- Decoy 생성 -->
+                <div style="background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #fb923c;">
+                    <div style="color: #92400e; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">생성된 Decoy</div>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <span style="font-size: 2rem; font-weight: 700; color: #c2410c;">${numDecoys.toLocaleString()}</span>
+                        <span style="font-size: 1rem; color: #92400e;">(${decoyPercent}%)</span>
+                    </div>
+                </div>
+                
+                <!-- 총 화합물 -->
+                <div style="background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #d8b4fe;">
+                    <div style="color: #6b21a8; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">총 화합물</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: #7c3aed;">${totalCompounds.toLocaleString()}</div>
+                </div>
+            </div>
+            
+            <!-- DUD-E 방식 설명 -->
+            <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <i class="fas fa-info-circle" style="color: #6b7280;"></i>
+                    <h4 style="margin: 0; font-weight: 600; color: #374151;">DUD-E 방식 Decoy 생성</h4>
+                </div>
+                <div style="color: #6b7280; font-size: 0.875rem; line-height: 1.6;">
+                    <p style="margin: 0 0 0.5rem 0;">✅ <strong>실제 데이터 우선 사용:</strong> ChEMBL/BindingDB에서 수집한 활성/비활성 화합물을 먼저 사용</p>
+                    <p style="margin: 0 0 0.5rem 0;">🔬 <strong>Decoy 보충:</strong> 비활성 화합물이 부족한 경우, 활성 화합물과 유사한 물리화학적 특성을 가진 decoy 생성</p>
+                    <p style="margin: 0;">📊 <strong>DUD-E 기준:</strong> 분자량, LogP, 회전 가능한 결합, 수소결합 donor/acceptor 등을 매칭하되 위상 구조는 다르게 생성</p>
+                </div>
+            </div>
+            
+            <!-- 출력 파일 -->
+            ${result.output_path ? `
+                <div style="padding: 1rem; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #6b7280; font-size: 0.875rem;">
+                        <i class="fas fa-file-csv"></i>
+                        <span>출력 파일: <strong style="color: #111827;">${result.output_path}</strong></span>
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
