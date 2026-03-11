@@ -34,14 +34,14 @@ class DecoyGenerationService:
         """
         self.decoy_ratio = decoy_ratio
         
-        # DUD-E 물리화학적 특성 허용 범위
+        # DUD-E 물리화학적 특성 허용 범위 (조금 완화하여 더 많은 decoy 생성)
         self.property_tolerances = {
-            'MW': 0.20,          # 분자량 ±20%
-            'LogP': 0.40,        # LogP ±0.40
-            'HBD': 1,            # Hydrogen Bond Donor ±1
-            'HBA': 2,            # Hydrogen Bond Acceptor ±2
-            'RotB': 2,           # Rotatable Bonds ±2
-            'Charge': 0          # Net Charge 정확히 일치
+            'MW': 0.25,          # 분자량 ±25% (완화)
+            'LogP': 0.50,        # LogP ±0.50 (완화)
+            'HBD': 2,            # Hydrogen Bond Donor ±2 (완화)
+            'HBA': 3,            # Hydrogen Bond Acceptor ±3 (완화)
+            'RotB': 3,           # Rotatable Bonds ±3 (완화)
+            'Charge': 1          # Net Charge ±1 (완화)
         }
         
         # ZINC 데이터베이스 시뮬레이션용 (실제 운영 시 ZINC DB 연동)
@@ -219,7 +219,7 @@ class DecoyGenerationService:
         """
         decoys = []
         attempts = 0
-        max_attempts = num_decoys * 100  # 충분한 시도 횟수
+        max_attempts = num_decoys * 1000  # 더 많은 시도 (10배 증가)
         
         while len(decoys) < num_decoys and attempts < max_attempts:
             attempts += 1
@@ -250,7 +250,7 @@ class DecoyGenerationService:
     
     def _modify_molecule(self, mol):
         """
-        분자 구조 변형 (원자 치환, 결합 회전 등)
+        분자 구조 변형 (원자 치환, 결합 회전, 작용기 추가 등)
         
         Args:
             mol: RDKit Mol object
@@ -262,26 +262,61 @@ class DecoyGenerationService:
             # 분자 복사
             modified_mol = Chem.RWMol(mol)
             
-            # 변형 방법 랜덤 선택
-            modification_type = random.choice(['atom_substitution', 'bond_rotation', 'ring_modification'])
+            # 변형 방법 랜덤 선택 (더 다양한 옵션)
+            modification_type = random.choice([
+                'atom_substitution', 
+                'double_substitution',  # 2개 원자 동시 치환
+                'add_methyl',           # 메틸기 추가
+                'remove_hydrogen',      # 수소 제거
+                'bond_rotation'
+            ])
             
             if modification_type == 'atom_substitution':
-                # 원자 치환 (C -> N, O 등)
+                # 원자 치환 (C -> N, O, S, F, Cl 등)
                 atom_idx = random.randint(0, modified_mol.GetNumAtoms() - 1)
                 atom = modified_mol.GetAtomWithIdx(atom_idx)
                 
                 if atom.GetSymbol() == 'C':
-                    substitute = random.choice(['N', 'O', 'S'])
-                    atom.SetAtomicNum({'N': 7, 'O': 8, 'S': 16}[substitute])
+                    substitute = random.choice(['N', 'O', 'S', 'F', 'Cl'])
+                    atom_num = {'N': 7, 'O': 8, 'S': 16, 'F': 9, 'Cl': 17}
+                    atom.SetAtomicNum(atom_num[substitute])
+                elif atom.GetSymbol() in ['N', 'O']:
+                    # N, O -> C 또는 서로 교환
+                    substitute = random.choice(['C', 'N', 'O'])
+                    atom_num = {'C': 6, 'N': 7, 'O': 8}
+                    atom.SetAtomicNum(atom_num[substitute])
+            
+            elif modification_type == 'double_substitution':
+                # 2개 원자 동시 치환으로 변형 증가
+                if modified_mol.GetNumAtoms() >= 2:
+                    for _ in range(2):
+                        atom_idx = random.randint(0, modified_mol.GetNumAtoms() - 1)
+                        atom = modified_mol.GetAtomWithIdx(atom_idx)
+                        if atom.GetSymbol() == 'C':
+                            substitute = random.choice(['N', 'O'])
+                            atom.SetAtomicNum({'N': 7, 'O': 8}[substitute])
+            
+            elif modification_type == 'add_methyl':
+                # 랜덤 탄소에 메틸기 추가
+                if modified_mol.GetNumAtoms() > 0:
+                    carbon_idx = random.randint(0, modified_mol.GetNumAtoms() - 1)
+                    # 메틸 탄소 추가
+                    new_carbon = modified_mol.AddAtom(Chem.Atom(6))
+                    modified_mol.AddBond(carbon_idx, new_carbon, Chem.BondType.SINGLE)
+            
+            elif modification_type == 'remove_hydrogen':
+                # 불포화도 증가 (H 제거)
+                for atom in modified_mol.GetAtoms():
+                    if atom.GetTotalNumHs() > 0 and random.random() < 0.3:
+                        atom.SetNumExplicitHs(max(0, atom.GetTotalNumHs() - 1))
             
             elif modification_type == 'bond_rotation':
                 # 3D Conformer 생성 및 회전
-                AllChem.EmbedMolecule(modified_mol, randomSeed=random.randint(0, 10000))
-                AllChem.UFFOptimizeMolecule(modified_mol)
-            
-            elif modification_type == 'ring_modification':
-                # 링 구조 변경 (복잡함으로 간단히 처리)
-                pass
+                try:
+                    AllChem.EmbedMolecule(modified_mol, randomSeed=random.randint(0, 10000))
+                    AllChem.UFFOptimizeMolecule(modified_mol)
+                except:
+                    pass  # 3D 생성 실패 시 무시
             
             # Sanitize
             Chem.SanitizeMol(modified_mol)
