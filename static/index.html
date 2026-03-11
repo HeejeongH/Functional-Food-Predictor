@@ -42,28 +42,28 @@
                         <span>데이터 수집</span>
                     </a>
                     <a href="#" class="nav-item" onclick="selectStep(2); return false;">
+                        <i class="fas fa-balance-scale"></i>
+                        <span>Decoy 생성</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="selectStep(3); return false;">
                         <i class="fas fa-cogs"></i>
                         <span>특성 변환</span>
                     </a>
-                    <a href="#" class="nav-item" onclick="selectStep(3); return false;">
+                    <a href="#" class="nav-item" onclick="selectStep(4); return false;">
                         <i class="fas fa-brain"></i>
                         <span>모델 학습</span>
                     </a>
-                    <a href="#" class="nav-item" onclick="selectStep(4); return false;">
+                    <a href="#" class="nav-item" onclick="selectStep(5); return false;">
                         <i class="fas fa-lightbulb"></i>
                         <span>SHAP 분석</span>
                     </a>
-                    <a href="#" class="nav-item" onclick="selectStep(5); return false;">
+                    <a href="#" class="nav-item" onclick="selectStep(6); return false;">
                         <i class="fas fa-flask"></i>
                         <span>SMILES 예측</span>
                     </a>
-                    <a href="#" class="nav-item" onclick="selectStep(6); return false;">
+                    <a href="#" class="nav-item" onclick="selectStep(7); return false;">
                         <i class="fas fa-database"></i>
                         <span>FooDB 예측</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="selectStep(7); return false;">
-                        <i class="fas fa-balance-scale"></i>
-                        <span>Decoy 생성</span>
                     </a>
                 </div>
             </nav>
@@ -112,90 +112,90 @@
                             </div>
                         </div>
 
-                        <!-- Step 2 -->
+                        <!-- Step 2: DUD-E Decoy Generation -->
                         <div class="step-card" onclick="toggleStep(2)">
                             <input type="checkbox" id="step2" class="step-checkbox" onclick="event.stopPropagation();">
                             <div class="step-number">2</div>
                             <div class="step-icon">
-                                <i class="fas fa-cogs"></i>
+                                <i class="fas fa-balance-scale"></i>
                             </div>
-                            <h3 class="step-title">특성 변환</h3>
-                            <p class="step-subtitle">Fingerprint + Descriptor</p>
+                            <h3 class="step-title">Decoy 생성</h3>
+                            <p class="step-subtitle">DUD-E 방식</p>
                             <div class="step-status pending" id="status2">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
                             </div>
                         </div>
 
-                        <!-- Step 3 -->
+                        <!-- Step 3: Feature Transform -->
                         <div class="step-card" onclick="toggleStep(3)">
                             <input type="checkbox" id="step3" class="step-checkbox" onclick="event.stopPropagation();">
                             <div class="step-number">3</div>
                             <div class="step-icon">
-                                <i class="fas fa-brain"></i>
+                                <i class="fas fa-cogs"></i>
                             </div>
-                            <h3 class="step-title">모델 학습</h3>
-                            <p class="step-subtitle">XGBoost/LightGBM</p>
+                            <h3 class="step-title">특성 변환</h3>
+                            <p class="step-subtitle">Fingerprint + Descriptor</p>
                             <div class="step-status pending" id="status3">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
                             </div>
                         </div>
 
-                        <!-- Step 4: SHAP Analysis -->
+                        <!-- Step 4: Model Training -->
                         <div class="step-card" onclick="toggleStep(4)">
                             <input type="checkbox" id="step4" class="step-checkbox" onclick="event.stopPropagation();">
                             <div class="step-number">4</div>
                             <div class="step-icon">
-                                <i class="fas fa-lightbulb"></i>
+                                <i class="fas fa-brain"></i>
                             </div>
-                            <h3 class="step-title">SHAP 분석</h3>
-                            <p class="step-subtitle">특성 중요도</p>
+                            <h3 class="step-title">모델 학습</h3>
+                            <p class="step-subtitle">XGBoost/LightGBM</p>
                             <div class="step-status pending" id="status4">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
                             </div>
                         </div>
 
-                        <!-- Step 5: SMILES Prediction -->
+                        <!-- Step 5: SHAP Analysis -->
                         <div class="step-card" onclick="toggleStep(5)">
                             <input type="checkbox" id="step5" class="step-checkbox" onclick="event.stopPropagation();">
                             <div class="step-number">5</div>
                             <div class="step-icon">
-                                <i class="fas fa-flask"></i>
+                                <i class="fas fa-lightbulb"></i>
                             </div>
-                            <h3 class="step-title">SMILES 예측</h3>
-                            <p class="step-subtitle">직접 입력</p>
+                            <h3 class="step-title">SHAP 분석</h3>
+                            <p class="step-subtitle">특성 중요도</p>
                             <div class="step-status pending" id="status5">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
                             </div>
                         </div>
 
-                        <!-- Step 6: FooDB Prediction -->
+                        <!-- Step 6: SMILES Prediction -->
                         <div class="step-card" onclick="toggleStep(6)">
                             <input type="checkbox" id="step6" class="step-checkbox" onclick="event.stopPropagation();">
                             <div class="step-number">6</div>
                             <div class="step-icon">
-                                <i class="fas fa-database"></i>
+                                <i class="fas fa-flask"></i>
                             </div>
-                            <h3 class="step-title">FooDB 예측</h3>
-                            <p class="step-subtitle">전체 화합물</p>
+                            <h3 class="step-title">SMILES 예측</h3>
+                            <p class="step-subtitle">직접 입력</p>
                             <div class="step-status pending" id="status6">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
                             </div>
                         </div>
 
-                        <!-- Step 7: DUD-E Decoy Generation -->
+                        <!-- Step 7: FooDB Prediction -->
                         <div class="step-card" onclick="toggleStep(7)">
                             <input type="checkbox" id="step7" class="step-checkbox" onclick="event.stopPropagation();">
                             <div class="step-number">7</div>
                             <div class="step-icon">
-                                <i class="fas fa-balance-scale"></i>
+                                <i class="fas fa-database"></i>
                             </div>
-                            <h3 class="step-title">Decoy 생성</h3>
-                            <p class="step-subtitle">DUD-E 방식</p>
+                            <h3 class="step-title">FooDB 예측</h3>
+                            <p class="step-subtitle">전체 화합물</p>
                             <div class="step-status pending" id="status7">
                                 <i class="fas fa-circle"></i>
                                 <span>대기중</span>
@@ -234,9 +234,36 @@
                             </div>
                         </div>
 
-                        <!-- Step 2-6: Select protein -->
-                        <div class="form-group" id="step2-config">
-                            <label class="form-label">Step 2-6: 분석할 단백질 선택</label>
+                        <!-- Step 2: Decoy Generation Options -->
+                        <div class="form-group" id="step2-config-ratio" style="display: none;">
+                            <label class="form-label">
+                                <i class="fas fa-balance-scale"></i>
+                                Step 2: Decoy 비율 (활성:비활성)
+                            </label>
+                            <select id="decoy-ratio" class="form-select">
+                                <option value="10">1:10 (빠른 테스트)</option>
+                                <option value="30">1:30 (균형)</option>
+                                <option value="50" selected>1:50 (권장 - DUD-E 기본)</option>
+                                <option value="100">1:100 (강력한 균형)</option>
+                            </select>
+                            <span class="form-hint">활성 화합물 1개당 비활성 화합물 개수</span>
+                        </div>
+
+                        <div class="form-group" id="step2-config-pos" style="display: none;">
+                            <label class="form-label">활성 임계값 (nM)</label>
+                            <input type="number" id="decoy-pos-threshold" class="form-input" value="10000" min="1">
+                            <span class="form-hint">이 값 이하면 활성 화합물로 분류</span>
+                        </div>
+
+                        <div class="form-group" id="step2-config-neg" style="display: none;">
+                            <label class="form-label">비활성 임계값 (nM)</label>
+                            <input type="number" id="decoy-neg-threshold" class="form-input" value="20000" min="1">
+                            <span class="form-hint">이 값 이상이면 비활성 화합물로 분류</span>
+                        </div>
+
+                        <!-- Step 3-7: Select protein -->
+                        <div class="form-group" id="step3-config">
+                            <label class="form-label">Step 3-7: 분석할 단백질 선택</label>
                             <select id="protein-name" class="form-select" disabled>
                                 <option value="">먼저 데이터를 수집해주세요</option>
                             </select>
@@ -251,7 +278,7 @@
                                 <option value="ECFP4">ECFP4 (1024비트)</option>
                                 <option value="MORGAN">MORGAN (1024비트)</option>
                             </select>
-                            <span class="form-hint">Step 2에서 사용</span>
+                            <span class="form-hint">Step 3에서 사용</span>
                         </div>
 
                         <!-- Dataset Ratio -->
@@ -277,7 +304,7 @@
 
                         <!-- Model Type -->
                         <div class="form-group">
-                            <label class="form-label">모델 타입 (Step 3)</label>
+                            <label class="form-label">모델 타입 (Step 4)</label>
                             <select id="model-type" class="form-select">
                                 <option value="XGBoost" selected>XGBoost (권장)</option>
                                 <option value="LightGBM">LightGBM</option>
@@ -302,29 +329,29 @@
 
                         <!-- Model Selection -->
                         <div class="form-group" style="grid-column: 1 / -1;">
-                            <label class="form-label">Step 4-6: 사용할 모델</label>
+                            <label class="form-label">Step 5-7: 사용할 모델</label>
                             <select id="model-select" class="form-select">
                                 <option value="AUTO">자동 (방금 학습한 모델 사용)</option>
                                 <option value="" disabled>--- 또는 기존 모델 선택 ---</option>
                             </select>
-                            <span class="form-hint">Step 3을 선택하면 자동으로 새 모델 사용</span>
+                            <span class="form-hint">Step 4를 선택하면 자동으로 새 모델 사용</span>
                         </div>
 
-                        <!-- SMILES Input (Step 5) -->
-                        <div class="form-group" id="step5-config" style="grid-column: 1 / -1; display: none;">
+                        <!-- SMILES Input (Step 6) -->
+                        <div class="form-group" id="step6-config" style="grid-column: 1 / -1; display: none;">
                             <label class="form-label">
                                 <i class="fas fa-flask"></i>
-                                Step 5: SMILES 리스트 (직접 입력)
+                                Step 6: SMILES 리스트 (직접 입력)
                             </label>
                             <textarea id="smiles-input" class="form-textarea" rows="4" placeholder="한 줄에 하나씩 입력&#10;예:&#10;CCO&#10;CC(=O)O&#10;c1ccccc1"></textarea>
-                            <span class="form-hint">Step 5 선택 시 필수</span>
+                            <span class="form-hint">Step 6 선택 시 필수</span>
                         </div>
 
-                        <!-- FooDB Options (Step 6) -->
-                        <div class="form-group" id="step6-config-mode" style="display: none;">
+                        <!-- FooDB Options (Step 7) -->
+                        <div class="form-group" id="step7-config-mode" style="display: none;">
                             <label class="form-label">
                                 <i class="fas fa-database"></i>
-                                Step 6: FooDB 예측 모드
+                                Step 7: FooDB 예측 모드
                             </label>
                             <select id="foodb-mode" class="form-select">
                                 <option value="top">상위 N개만 예측</option>
@@ -333,43 +360,16 @@
                             <span class="form-hint">전체 예측은 수백~수천 개 화합물 처리</span>
                         </div>
 
-                        <div class="form-group" id="step6-config-top" style="display: none;">
+                        <div class="form-group" id="step7-config-top" style="display: none;">
                             <label class="form-label">상위 N개</label>
                             <input type="number" id="foodb-top-n" class="form-input" value="100" min="1" max="10000">
                             <span class="form-hint">활성 확률 높은 순서로 필터링</span>
                         </div>
 
-                        <div class="form-group" id="step6-config-threshold" style="display: none;">
+                        <div class="form-group" id="step7-config-threshold" style="display: none;">
                             <label class="form-label">활성 확률 임계값</label>
                             <input type="number" id="foodb-threshold" class="form-input" value="0.5" min="0" max="1" step="0.05">
                             <span class="form-hint">이 확률 이상인 화합물만 표시 (0~1)</span>
-                        </div>
-
-                        <!-- DUD-E Decoy Generation Options (Step 7) -->
-                        <div class="form-group" id="step7-config-ratio" style="display: none;">
-                            <label class="form-label">
-                                <i class="fas fa-balance-scale"></i>
-                                Step 7: Decoy 비율 (활성:비활성)
-                            </label>
-                            <select id="decoy-ratio" class="form-select">
-                                <option value="10">1:10 (빠른 테스트)</option>
-                                <option value="30">1:30 (균형)</option>
-                                <option value="50" selected>1:50 (권장 - DUD-E 기본)</option>
-                                <option value="100">1:100 (강력한 균형)</option>
-                            </select>
-                            <span class="form-hint">활성 화합물 1개당 비활성 화합물 개수</span>
-                        </div>
-
-                        <div class="form-group" id="step7-config-pos" style="display: none;">
-                            <label class="form-label">활성 임계값 (nM)</label>
-                            <input type="number" id="decoy-pos-threshold" class="form-input" value="10000" min="1">
-                            <span class="form-hint">이 값 이하면 활성 화합물로 분류</span>
-                        </div>
-
-                        <div class="form-group" id="step7-config-neg" style="display: none;">
-                            <label class="form-label">비활성 임계값 (nM)</label>
-                            <input type="number" id="decoy-neg-threshold" class="form-input" value="20000" min="1">
-                            <span class="form-hint">이 값 이상이면 비활성 화합물로 분류</span>
                         </div>
                     </div>
 

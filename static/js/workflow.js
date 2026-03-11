@@ -80,37 +80,37 @@ function updateStepConfig(stepNum) {
         step1Config.style.display = 'block'; // 항상 표시
     }
     
-    // Step 5, Step 6, Step 7 체크 상태 확인
-    const step5Checkbox = document.getElementById('step5');
+    // Step 2, Step 6, Step 7 체크 상태 확인
+    const step2Checkbox = document.getElementById('step2');
     const step6Checkbox = document.getElementById('step6');
     const step7Checkbox = document.getElementById('step7');
-    const step5Checked = step5Checkbox ? step5Checkbox.checked : false;
+    const step2Checked = step2Checkbox ? step2Checkbox.checked : false;
     const step6Checked = step6Checkbox ? step6Checkbox.checked : false;
     const step7Checked = step7Checkbox ? step7Checkbox.checked : false;
     
-    // Step 5: SMILES 입력 폼 (Step 5만 선택되었을 때만 표시)
-    const step5Config = document.getElementById('step5-config');
-    if (step5Config) {
-        step5Config.style.display = step5Checked ? 'block' : 'none';
+    // Step 2: Decoy 생성 옵션 폼 (Step 2가 선택되었을 때만 표시)
+    const step2ConfigRatio = document.getElementById('step2-config-ratio');
+    const step2ConfigPos = document.getElementById('step2-config-pos');
+    const step2ConfigNeg = document.getElementById('step2-config-neg');
+    
+    if (step2ConfigRatio) step2ConfigRatio.style.display = step2Checked ? 'block' : 'none';
+    if (step2ConfigPos) step2ConfigPos.style.display = step2Checked ? 'block' : 'none';
+    if (step2ConfigNeg) step2ConfigNeg.style.display = step2Checked ? 'block' : 'none';
+    
+    // Step 6: SMILES 입력 폼 (Step 6만 선택되었을 때만 표시)
+    const step6Config = document.getElementById('step6-config');
+    if (step6Config) {
+        step6Config.style.display = step6Checked ? 'block' : 'none';
     }
     
-    // Step 6: FooDB 옵션 폼 (Step 6이 선택되었을 때만 표시)
-    const step6ConfigMode = document.getElementById('step6-config-mode');
-    const step6ConfigTop = document.getElementById('step6-config-top');
-    const step6ConfigThreshold = document.getElementById('step6-config-threshold');
+    // Step 7: FooDB 옵션 폼 (Step 7이 선택되었을 때만 표시)
+    const step7ConfigMode = document.getElementById('step7-config-mode');
+    const step7ConfigTop = document.getElementById('step7-config-top');
+    const step7ConfigThreshold = document.getElementById('step7-config-threshold');
     
-    if (step6ConfigMode) step6ConfigMode.style.display = step6Checked ? 'block' : 'none';
-    if (step6ConfigTop) step6ConfigTop.style.display = step6Checked ? 'block' : 'none';
-    if (step6ConfigThreshold) step6ConfigThreshold.style.display = step6Checked ? 'block' : 'none';
-    
-    // Step 7: Decoy 생성 옵션 폼 (Step 7이 선택되었을 때만 표시)
-    const step7ConfigRatio = document.getElementById('step7-config-ratio');
-    const step7ConfigPos = document.getElementById('step7-config-pos');
-    const step7ConfigNeg = document.getElementById('step7-config-neg');
-    
-    if (step7ConfigRatio) step7ConfigRatio.style.display = step7Checked ? 'block' : 'none';
-    if (step7ConfigPos) step7ConfigPos.style.display = step7Checked ? 'block' : 'none';
-    if (step7ConfigNeg) step7ConfigNeg.style.display = step7Checked ? 'block' : 'none';
+    if (step7ConfigMode) step7ConfigMode.style.display = step7Checked ? 'block' : 'none';
+    if (step7ConfigTop) step7ConfigTop.style.display = step7Checked ? 'block' : 'none';
+    if (step7ConfigThreshold) step7ConfigThreshold.style.display = step7Checked ? 'block' : 'none';
 }
 
 // 단계 카드 업데이트
@@ -129,12 +129,12 @@ function updateStepCard(stepNum) {
 async function executeWorkflow() {
     // 선택된 단계 확인 (Step 1 제외 - 사전에 수집해야 함)
     const steps = [
-        { id: 'step2', name: '특성 변환', fn: executeFeatureTransform },
-        { id: 'step3', name: '모델 학습', fn: executeModelTraining },
-        { id: 'step4', name: 'SHAP 분석', fn: executeSHAPAnalysis },
-        { id: 'step5', name: 'SMILES 예측', fn: executeSMILESPrediction },
-        { id: 'step6', name: 'FooDB 예측', fn: executeFooDBPrediction },
-        { id: 'step7', name: 'Decoy 생성', fn: executeDecoyGeneration }
+        { id: 'step2', name: 'Decoy 생성', fn: executeDecoyGeneration },
+        { id: 'step3', name: '특성 변환', fn: executeFeatureTransform },
+        { id: 'step4', name: '모델 학습', fn: executeModelTraining },
+        { id: 'step5', name: 'SHAP 분석', fn: executeSHAPAnalysis },
+        { id: 'step6', name: 'SMILES 예측', fn: executeSMILESPrediction },
+        { id: 'step7', name: 'FooDB 예측', fn: executeFooDBPrediction }
     ];
 
     const selectedSteps = steps.filter(step => document.getElementById(step.id).checked);
@@ -151,8 +151,8 @@ async function executeWorkflow() {
         return;
     }
 
-    // Step 5 선택 시 SMILES 필수
-    if (selectedSteps.find(s => s.id === 'step5')) {
+    // Step 6 선택 시 SMILES 필수
+    if (selectedSteps.find(s => s.id === 'step6')) {
         const smiles = document.getElementById('smiles-input').value.trim();
         if (!smiles) {
             alert('SMILES 예측을 위해 SMILES 리스트를 입력해주세요.');
@@ -294,20 +294,20 @@ function createResultCard(stepNumber, stepName, result) {
         // 데이터 수집 결과
         card.innerHTML = createDataCollectionResultUI(stepNumber, stepName, result);
     } else if (stepNumber === 2) {
-        // 특성 변환 결과
-        card.innerHTML = createFeatureTransformResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 3) {
-        // 모델 학습 결과
-        card.innerHTML = createModelResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 4) {
-        // SHAP 분석 결과
-        card.innerHTML = createSHAPResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 5 || stepNumber === 6) {
-        // SMILES/FooDB 예측 결과
-        card.innerHTML = createPredictionResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 7) {
         // DUD-E Decoy 생성 결과
         card.innerHTML = createDecoyGenerationResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 3) {
+        // 특성 변환 결과
+        card.innerHTML = createFeatureTransformResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 4) {
+        // 모델 학습 결과
+        card.innerHTML = createModelResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 5) {
+        // SHAP 분석 결과
+        card.innerHTML = createSHAPResultUI(stepNumber, stepName, result);
+    } else if (stepNumber === 6 || stepNumber === 7) {
+        // SMILES/FooDB 예측 결과
+        card.innerHTML = createPredictionResultUI(stepNumber, stepName, result);
     } else {
         // 기본 UI
         card.innerHTML = createDefaultResultUI(stepNumber, stepName, result);
@@ -1227,7 +1227,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const foodbModeSelect = document.getElementById('foodb-mode');
     if (foodbModeSelect) {
         foodbModeSelect.addEventListener('change', function() {
-            const topNGroup = document.getElementById('step6-config-top');
+            const topNGroup = document.getElementById('step7-config-top');
             if (topNGroup) {
                 topNGroup.style.display = this.value === 'top' ? 'block' : 'none';
             }
