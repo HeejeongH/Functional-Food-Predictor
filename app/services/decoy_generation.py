@@ -219,7 +219,7 @@ class DecoyGenerationService:
         """
         decoys = []
         attempts = 0
-        max_attempts = num_decoys * 1000  # 더 많은 시도 (10배 증가)
+        max_attempts = num_decoys * 500  # 적절한 시도 횟수 (5배 증가, 속도 고려)
         
         while len(decoys) < num_decoys and attempts < max_attempts:
             attempts += 1
@@ -374,6 +374,7 @@ class DecoyGenerationService:
         
         # 3. Decoy 생성
         print(f"\n🔬 Generating {shortage} decoys...")
+        print(f"  Strategy: {decoys_per_active} decoys per active compound")
         
         decoys_per_active = shortage // num_actives + 1
         all_decoys = []
@@ -383,11 +384,16 @@ class DecoyGenerationService:
                 break
             
             active_smiles = row['canonical_smiles']
+            print(f"  [{idx+1}/{num_actives}] Generating decoys for: {active_smiles[:30]}...")
+            
             decoys = self.generate_decoys_from_zinc(active_smiles, num_decoys=decoys_per_active)
             all_decoys.extend(decoys)
             
-            if (idx + 1) % 10 == 0:
-                print(f"  Progress: {idx+1}/{num_actives} actives processed, {len(all_decoys)} decoys generated")
+            print(f"    → Generated {len(decoys)} decoys (Total: {len(all_decoys)}/{shortage})")
+            
+            if (idx + 1) % 5 == 0:
+                progress_pct = (len(all_decoys) / shortage * 100) if shortage > 0 else 0
+                print(f"  📊 Progress: {idx+1}/{num_actives} actives, {len(all_decoys)}/{shortage} decoys ({progress_pct:.1f}%)")
         
         # Decoy 개수 조정
         all_decoys = all_decoys[:shortage]

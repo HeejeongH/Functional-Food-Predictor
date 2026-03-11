@@ -1151,7 +1151,10 @@ async function executeDecoyGeneration() {
     
     console.log('Decoy generation request:', requestData);
     
-    const response = await axios.post(`${API_BASE_URL}/api/decoy/generate`, requestData);
+    // Decoy 생성은 오래 걸릴 수 있으므로 타임아웃 연장 (10분)
+    const response = await axios.post(`${API_BASE_URL}/api/decoy/generate`, requestData, {
+        timeout: 600000  // 10분
+    });
     
     console.log('Decoy generation response:', response.data);
     
