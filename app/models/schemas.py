@@ -3,9 +3,15 @@ from typing import List, Optional, Dict, Any
 from enum import Enum
 
 class FingerprintType(str, Enum):
-    ECFP4 = "ECFP4"
     MACCS = "MACCS"
+    ECFP4 = "ECFP4"
+    ECFP6 = "ECFP6"
+    FCFP4 = "FCFP4"
+    FCFP6 = "FCFP6"
+    RDKIT = "RDKIT"
     MORGAN = "MORGAN"
+    ATOMPAIR = "ATOMPAIR"
+    TORSION = "TORSION"
 
 class DescriptorType(str, Enum):
     MORDRED_2D = "MORDRED_2D"

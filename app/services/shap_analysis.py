@@ -112,11 +112,13 @@ class SHAPAnalysisService:
                     
                     with timeout(timeout_seconds):
                         explainer = shap.KernelExplainer(
-                            model.predict, 
+                            model.predict_proba,
                             X[:background_samples]
                         )
                         print("[2/3] Computing SHAP values (Kernel, very slow)...")
                         shap_values = explainer.shap_values(X[:kernel_samples])
+                        sv = np.array(shap_values)
+                        shap_values = sv[:, :, 1] if sv.ndim == 3 else sv[1]
                         print("✅ KernelExplainer succeeded")
                         X = X[:kernel_samples]  # 샘플 수 조정
                 

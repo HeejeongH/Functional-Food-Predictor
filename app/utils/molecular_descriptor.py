@@ -25,16 +25,11 @@ def calc_descriptors(smiles_list, leave_cores=4, ignore3D=True):
             
             if not ignore3D:
                 # 3D 좌표 생성 시도
-                result = AllChem.EmbedMolecule(mol, randomSeed=42)
-                if result == 0:  # 성공
-                    try:
-                        AllChem.MMFFOptimizeMolecule(mol, maxIters=1000)
-                    except:
-                        try:
-                            AllChem.UFFOptimizeMolecule(mol, maxIters=1000)
-                        except:
-                            pass  # 최적화 실패해도 진행
-                    
+                result = AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())
+                if result != -1:  # 성공
+                    AllChem.MMFFOptimizeMolecule(mol)
+                    mol = Chem.RemoveHs(mol)
+
                     mols.append(mol)
                     valid_indices.append(i)
                 else:
@@ -154,15 +149,10 @@ def calc_specific_descriptors(smiles_list, descriptor_list=None, leave_cores=4, 
             mol = Chem.AddHs(mol)
             
             if not ignore3D:
-                result = AllChem.EmbedMolecule(mol, randomSeed=42)
-                if result == 0:
-                    try:
-                        AllChem.MMFFOptimizeMolecule(mol, maxIters=1000)
-                    except:
-                        try:
-                            AllChem.UFFOptimizeMolecule(mol, maxIters=1000)
-                        except:
-                            pass
+                result = AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())
+                if result != -1:
+                    AllChem.MMFFOptimizeMolecule(mol)
+                    mol = Chem.RemoveHs(mol)
                     mols.append(mol)
                     valid_indices.append(i)
                 else:

@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from mordred import Calculator, descriptors as mordred_desc
-from app.services.feature_transform import FeatureTransformService
+from app.services.feature_transform import FeatureTransformService, get_fp_cols
 
 class FooDBPreprocessingService:
     """
@@ -17,6 +17,8 @@ class FooDBPreprocessingService:
     - Fingerprint + Descriptor 결합
     """
     
+    RENAME_COLS = {'MATS1pe': 'MATS1p', 'ATSC6pe': 'ATSC6p'}
+
     def __init__(self):
         self.feature_service = FeatureTransformService()
         self.all_descs = list(Calculator(mordred_desc).descriptors)
@@ -243,12 +245,12 @@ class FooDBPreprocessingService:
         
         # 4. 병합
         print('\n[Step 4] 데이터 병합')
-        
-        # Fingerprint 컬럼 이름
-        if fingerprint_type == 'MACCS':
-            fp_cols = [f'FP{i}' for i in range(167)]
-        else:
-            fp_cols = [f'FP{i}' for i in range(1024)]
+
+        # RENAME_COLS 적용 (Mordred 버전 차이 처리)
+        desc_df.rename(columns=self.RENAME_COLS, inplace=True)
+
+        # Fingerprint 컬럼 이름 (Pycaret 기준)
+        fp_cols = get_fp_cols(fingerprint_type.lower())
         
         # 메타 컬럼 (SMILES, id, name 등)
         meta_cols = [c for c in foodb_raw.columns if c not in fp_cols]
@@ -268,6 +270,14 @@ class FooDBPreprocessingService:
         
         # 데이터 정제
         data_cols = fp_cols + descriptor_names
+
+        # 문자열 오류값 포함 행 제거 (missing|error|failed)
+        for col in data_cols:
+            if col in final_data.columns:
+                string_mask = final_data[col].astype(str).str.contains('missing|error|failed', case=False, na=False)
+                if string_mask.any():
+                    final_data = final_data[~string_mask]
+
         for col in data_cols:
             if col in final_data.columns:
                 final_data[col] = pd.to_numeric(final_data[col], errors='coerce')
