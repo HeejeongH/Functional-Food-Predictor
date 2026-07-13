@@ -1,413 +1,586 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PCI Prediction - 단백질-화합물 상호작용 예측</title>
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>PCI Prediction — FoodTech ML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon"/>
+  <link rel="stylesheet" href="/static/css/style.css?v=4"/>
 </head>
 <body>
-    <div class="app-container">
-        
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <a href="/" class="logo">
-                    <div class="logo-icon">
-                        <i class="fas fa-flask"></i>
-                    </div>
-                    <span class="logo-text">PCI Prediction</span>
-                </a>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <div class="nav-section">
-                    <div class="nav-section-title">Main</div>
-                    <a href="#" class="nav-item active">
-                        <i class="fas fa-th-large"></i>
-                        <span>워크플로우</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="window.open('/docs', '_blank'); return false;">
-                        <i class="fas fa-book"></i>
-                        <span>API 문서</span>
-                    </a>
-                </div>
-                
-                <div class="nav-section">
-                    <div class="nav-section-title">Quick Actions</div>
-                    <a href="#" class="nav-item" onclick="selectStep(1); return false;">
-                        <i class="fas fa-download"></i>
-                        <span>데이터 수집</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="selectStep(2); return false;">
-                        <i class="fas fa-balance-scale"></i>
-                        <span>Decoy 생성</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="selectStep(3); return false;">
-                        <i class="fas fa-cogs"></i>
-                        <span>특성 변환</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="selectStep(4); return false;">
-                        <i class="fas fa-brain"></i>
-                        <span>모델 학습</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="selectStep(5); return false;">
-                        <i class="fas fa-lightbulb"></i>
-                        <span>SHAP 분석</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="selectStep(6); return false;">
-                        <i class="fas fa-flask"></i>
-                        <span>SMILES 예측</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="selectStep(7); return false;">
-                        <i class="fas fa-database"></i>
-                        <span>FooDB 예측</span>
-                    </a>
-                </div>
-            </nav>
-        </aside>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            
-            <!-- Topbar -->
-            <header class="topbar">
-                <h1 class="topbar-title">통합 워크플로우</h1>
-                <div class="topbar-actions">
-                    <div class="status-badge">
-                        <div class="status-dot"></div>
-                        <span>시스템 정상</span>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Content Area -->
-            <div class="content-area">
-                
-                <!-- Workflow Steps Selection -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">
-                            <i class="fas fa-tasks"></i>
-                            실행할 단계 선택
-                        </h2>
-                        <p class="card-description">필요한 단계를 선택하고 한 번에 실행하세요</p>
-                    </div>
-                    
-                    <div class="steps-grid">
-                        <!-- Step 1 -->
-                        <div class="step-card" onclick="toggleStep(1)">
-                            <input type="checkbox" id="step1" class="step-checkbox" onclick="event.stopPropagation();">
-                            <div class="step-number">1</div>
-                            <div class="step-icon">
-                                <i class="fas fa-download"></i>
-                            </div>
-                            <h3 class="step-title">데이터 수집</h3>
-                            <p class="step-subtitle">ChEMBL/BindingDB</p>
-                            <div class="step-status pending" id="status1">
-                                <i class="fas fa-circle"></i>
-                                <span>대기중</span>
-                            </div>
-                        </div>
-
-                        <!-- Step 2: DUD-E Decoy Generation -->
-                        <div class="step-card" onclick="toggleStep(2)">
-                            <input type="checkbox" id="step2" class="step-checkbox" onclick="event.stopPropagation();">
-                            <div class="step-number">2</div>
-                            <div class="step-icon">
-                                <i class="fas fa-balance-scale"></i>
-                            </div>
-                            <h3 class="step-title">Decoy 생성</h3>
-                            <p class="step-subtitle">DUD-E 방식</p>
-                            <div class="step-status pending" id="status2">
-                                <i class="fas fa-circle"></i>
-                                <span>대기중</span>
-                            </div>
-                        </div>
-
-                        <!-- Step 3: Feature Transform -->
-                        <div class="step-card" onclick="toggleStep(3)">
-                            <input type="checkbox" id="step3" class="step-checkbox" onclick="event.stopPropagation();">
-                            <div class="step-number">3</div>
-                            <div class="step-icon">
-                                <i class="fas fa-cogs"></i>
-                            </div>
-                            <h3 class="step-title">특성 변환</h3>
-                            <p class="step-subtitle">Fingerprint + Descriptor</p>
-                            <div class="step-status pending" id="status3">
-                                <i class="fas fa-circle"></i>
-                                <span>대기중</span>
-                            </div>
-                        </div>
-
-                        <!-- Step 4: Model Training -->
-                        <div class="step-card" onclick="toggleStep(4)">
-                            <input type="checkbox" id="step4" class="step-checkbox" onclick="event.stopPropagation();">
-                            <div class="step-number">4</div>
-                            <div class="step-icon">
-                                <i class="fas fa-brain"></i>
-                            </div>
-                            <h3 class="step-title">모델 학습</h3>
-                            <p class="step-subtitle">XGBoost/LightGBM</p>
-                            <div class="step-status pending" id="status4">
-                                <i class="fas fa-circle"></i>
-                                <span>대기중</span>
-                            </div>
-                        </div>
-
-                        <!-- Step 5: SHAP Analysis -->
-                        <div class="step-card" onclick="toggleStep(5)">
-                            <input type="checkbox" id="step5" class="step-checkbox" onclick="event.stopPropagation();">
-                            <div class="step-number">5</div>
-                            <div class="step-icon">
-                                <i class="fas fa-lightbulb"></i>
-                            </div>
-                            <h3 class="step-title">SHAP 분석</h3>
-                            <p class="step-subtitle">특성 중요도</p>
-                            <div class="step-status pending" id="status5">
-                                <i class="fas fa-circle"></i>
-                                <span>대기중</span>
-                            </div>
-                        </div>
-
-                        <!-- Step 6: SMILES Prediction -->
-                        <div class="step-card" onclick="toggleStep(6)">
-                            <input type="checkbox" id="step6" class="step-checkbox" onclick="event.stopPropagation();">
-                            <div class="step-number">6</div>
-                            <div class="step-icon">
-                                <i class="fas fa-flask"></i>
-                            </div>
-                            <h3 class="step-title">SMILES 예측</h3>
-                            <p class="step-subtitle">직접 입력</p>
-                            <div class="step-status pending" id="status6">
-                                <i class="fas fa-circle"></i>
-                                <span>대기중</span>
-                            </div>
-                        </div>
-
-                        <!-- Step 7: FooDB Prediction -->
-                        <div class="step-card" onclick="toggleStep(7)">
-                            <input type="checkbox" id="step7" class="step-checkbox" onclick="event.stopPropagation();">
-                            <div class="step-number">7</div>
-                            <div class="step-icon">
-                                <i class="fas fa-database"></i>
-                            </div>
-                            <h3 class="step-title">FooDB 예측</h3>
-                            <p class="step-subtitle">전체 화합물</p>
-                            <div class="step-status pending" id="status7">
-                                <i class="fas fa-circle"></i>
-                                <span>대기중</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuration Form -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">
-                            <i class="fas fa-sliders-h"></i>
-                            설정
-                        </h2>
-                        <p class="card-description">워크플로우 실행에 필요한 파라미터를 입력하세요</p>
-                    </div>
-
-                    <div class="form-grid">
-                        <!-- Step 1: Collect proteins -->
-                        <div class="form-group" style="grid-column: 1 / -1;" id="step1-config">
-                            <label class="form-label">Step 1: 수집할 단백질 리스트</label>
-                            <div style="display: flex; gap: 0.5rem;">
-                                <input type="text" id="target-genes" class="form-input" placeholder="예: PDE4, PDE5, FTO (쉼표로 구분)" style="flex: 1;">
-                                <button type="button" onclick="collectData()" class="btn btn-primary" id="collect-btn">
-                                    <i class="fas fa-download"></i>
-                                    데이터 수집
-                                </button>
-                            </div>
-                            <span class="form-hint">먼저 단백질 데이터를 수집하세요</span>
-                            <div id="collected-proteins" class="hidden" style="margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: var(--radius-md);">
-                                <div style="font-size: 0.875rem; font-weight: 600; color: var(--success); margin-bottom: 0.5rem;">
-                                    <i class="fas fa-check-circle"></i> 수집 완료
-                                </div>
-                                <div id="collected-proteins-list" style="font-size: 0.875rem; color: var(--gray-700);"></div>
-                            </div>
-                        </div>
-
-                        <!-- Step 2: Decoy Generation Options -->
-                        <div class="form-group" id="step2-config-ratio" style="display: none;">
-                            <label class="form-label">
-                                <i class="fas fa-balance-scale"></i>
-                                Step 2: Decoy 비율 (활성:비활성)
-                            </label>
-                            <select id="decoy-ratio" class="form-select">
-                                <option value="10">1:10 (빠른 테스트)</option>
-                                <option value="30">1:30 (균형)</option>
-                                <option value="50" selected>1:50 (권장 - DUD-E 기본)</option>
-                                <option value="100">1:100 (강력한 균형)</option>
-                            </select>
-                            <span class="form-hint">활성 화합물 1개당 비활성 화합물 개수</span>
-                        </div>
-
-                        <div class="form-group" id="step2-config-pos" style="display: none;">
-                            <label class="form-label">활성 임계값 (nM)</label>
-                            <input type="number" id="decoy-pos-threshold" class="form-input" value="10000" min="1">
-                            <span class="form-hint">이 값 이하면 활성 화합물로 분류</span>
-                        </div>
-
-                        <div class="form-group" id="step2-config-neg" style="display: none;">
-                            <label class="form-label">비활성 임계값 (nM)</label>
-                            <input type="number" id="decoy-neg-threshold" class="form-input" value="20000" min="1">
-                            <span class="form-hint">이 값 이상이면 비활성 화합물로 분류</span>
-                        </div>
-
-                        <!-- Step 3-7: Select protein -->
-                        <div class="form-group" id="step3-config">
-                            <label class="form-label">Step 3-7: 분석할 단백질 선택</label>
-                            <select id="protein-name" class="form-select" disabled>
-                                <option value="">먼저 데이터를 수집해주세요</option>
-                            </select>
-                            <span class="form-hint">수집된 단백질 중 선택</span>
-                        </div>
-
-                        <!-- Fingerprint Type -->
-                        <div class="form-group">
-                            <label class="form-label">Fingerprint 타입</label>
-                            <select id="fingerprint-type" class="form-select">
-                                <option value="MACCS">MACCS (167비트 - 권장)</option>
-                                <option value="ECFP4">ECFP4 (1024비트)</option>
-                                <option value="MORGAN">MORGAN (1024비트)</option>
-                            </select>
-                            <span class="form-hint">Step 3에서 사용</span>
-                        </div>
-
-                        <!-- Dataset Ratio -->
-                        <div class="form-group">
-                            <label class="form-label">데이터셋 비율</label>
-                            <select id="dataset-ratio" class="form-select">
-                                <option value="5x">5x (1:5)</option>
-                                <option value="10x">10x (1:10)</option>
-                                <option value="20x" selected>20x (1:20)</option>
-                            </select>
-                            <span class="form-hint">활성:비활성 비율</span>
-                        </div>
-
-                        <!-- Descriptor Dimension -->
-                        <div class="form-group">
-                            <label class="form-label">Descriptor 차원</label>
-                            <select id="ignore3d" class="form-select">
-                                <option value="true" selected>2D만 사용</option>
-                                <option value="false">3D 포함</option>
-                            </select>
-                            <span class="form-hint">2D가 더 빠릅니다</span>
-                        </div>
-
-                        <!-- Model Type -->
-                        <div class="form-group">
-                            <label class="form-label">모델 타입 (Step 4)</label>
-                            <select id="model-type" class="form-select">
-                                <option value="XGBoost" selected>XGBoost (권장)</option>
-                                <option value="LightGBM">LightGBM</option>
-                                <option value="CatBoost">CatBoost</option>
-                                <option value="RandomForest">RandomForest</option>
-                                <option value="TabPFN">TabPFN (Few-shot 학습 전문 - 소량 데이터 최적화)</option>
-                            </select>
-                            <span class="form-hint">TabPFN: 50-1000개 데이터에 최적, 빠른 학습, Hugging Face 인증 필요 (DEPLOYMENT.md 참고)</span>
-                        </div>
-
-                        <!-- Active Threshold -->
-                        <div class="form-group">
-                            <label class="form-label">활성 임계값 (nM)</label>
-                            <input type="number" id="pos-threshold" class="form-input" value="10000">
-                        </div>
-
-                        <!-- Inactive Threshold -->
-                        <div class="form-group">
-                            <label class="form-label">비활성 임계값 (nM)</label>
-                            <input type="number" id="neg-threshold" class="form-input" value="20000">
-                        </div>
-
-                        <!-- Model Selection -->
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label class="form-label">Step 5-7: 사용할 모델</label>
-                            <select id="model-select" class="form-select">
-                                <option value="AUTO">자동 (방금 학습한 모델 사용)</option>
-                                <option value="" disabled>--- 또는 기존 모델 선택 ---</option>
-                            </select>
-                            <span class="form-hint">Step 4를 선택하면 자동으로 새 모델 사용</span>
-                        </div>
-
-                        <!-- SMILES Input (Step 6) -->
-                        <div class="form-group" id="step6-config" style="grid-column: 1 / -1; display: none;">
-                            <label class="form-label">
-                                <i class="fas fa-flask"></i>
-                                Step 6: SMILES 리스트 (직접 입력)
-                            </label>
-                            <textarea id="smiles-input" class="form-textarea" rows="4" placeholder="한 줄에 하나씩 입력&#10;예:&#10;CCO&#10;CC(=O)O&#10;c1ccccc1"></textarea>
-                            <span class="form-hint">Step 6 선택 시 필수</span>
-                        </div>
-
-                        <!-- FooDB Options (Step 7) -->
-                        <div class="form-group" id="step7-config-mode" style="display: none;">
-                            <label class="form-label">
-                                <i class="fas fa-database"></i>
-                                Step 7: FooDB 예측 모드
-                            </label>
-                            <select id="foodb-mode" class="form-select">
-                                <option value="top">상위 N개만 예측</option>
-                                <option value="all">전체 예측 (시간 소요)</option>
-                            </select>
-                            <span class="form-hint">전체 예측은 수백~수천 개 화합물 처리</span>
-                        </div>
-
-                        <div class="form-group" id="step7-config-top" style="display: none;">
-                            <label class="form-label">상위 N개</label>
-                            <input type="number" id="foodb-top-n" class="form-input" value="100" min="1" max="10000">
-                            <span class="form-hint">활성 확률 높은 순서로 필터링</span>
-                        </div>
-
-                        <div class="form-group" id="step7-config-threshold" style="display: none;">
-                            <label class="form-label">활성 확률 임계값</label>
-                            <input type="number" id="foodb-threshold" class="form-input" value="0.5" min="0" max="1" step="0.05">
-                            <span class="form-hint">이 확률 이상인 화합물만 표시 (0~1)</span>
-                        </div>
-                    </div>
-
-                    <!-- Execute Button -->
-                    <div style="margin-top: 2rem; text-align: center;">
-                        <button onclick="executeWorkflow()" class="btn btn-primary btn-lg">
-                            <i class="fas fa-play"></i>
-                            선택한 단계 실행
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Progress Section -->
-                <div id="progress-section" class="card hidden">
-                    <div class="card-header">
-                        <h2 class="card-title">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            실행 진행 상황
-                        </h2>
-                    </div>
-                    <div class="progress-list" id="progress-container"></div>
-                </div>
-
-                <!-- Results Section -->
-                <div id="results-section" class="card hidden">
-                    <div class="card-header">
-                        <h2 class="card-title">
-                            <i class="fas fa-check-circle"></i>
-                            실행 결과
-                        </h2>
-                    </div>
-                    <div class="results-grid" id="results-container"></div>
-                </div>
-
-            </div>
-        </main>
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo"><i class="fas fa-dna"></i></div>
+    <div>
+      <p class="sb-title">PCI Predict</p>
+      <p class="sb-sub">FoodTech ML Pipeline</p>
     </div>
+  </div>
 
-    <script src="/static/js/workflow.js?v=16"></script>
+  <nav class="sb-nav">
+    <a class="sb-item active" data-page="data-prep" href="#">
+      <span class="sb-icon"><i class="fas fa-database"></i></span>
+      <span class="sb-label">1. 데이터 준비</span>
+    </a>
+    <a class="sb-item" data-page="train" href="#">
+      <span class="sb-icon"><i class="fas fa-brain"></i></span>
+      <span class="sb-label">2. 모델 학습</span>
+    </a>
+    <a class="sb-item" data-page="results" href="#">
+      <span class="sb-icon"><i class="fas fa-chart-bar"></i></span>
+      <span class="sb-label">3. 결과 비교</span>
+    </a>
+    <a class="sb-item" data-page="shap" href="#">
+      <span class="sb-icon"><i class="fas fa-microscope"></i></span>
+      <span class="sb-label">4. SHAP 분석</span>
+    </a>
+    <a class="sb-item" data-page="predict" href="#">
+      <span class="sb-icon"><i class="fas fa-flask"></i></span>
+      <span class="sb-label">5. 예측</span>
+    </a>
+  </nav>
+
+  <div class="sb-footer">
+    <a class="sb-docs" href="/docs" target="_blank"><i class="fas fa-book-open"></i> API 문서</a>
+    <div class="sys-row">
+      <span class="sys-dot" id="sys-dot"></span>
+      <span id="sys-label" class="sys-label">확인 중…</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════════ TOPBAR ═══════════════ -->
+<header class="topbar">
+  <button class="burger" id="burger"><i class="fas fa-bars"></i></button>
+  <div class="tb-center">
+    <span class="tb-step-num" id="tb-step-num">01</span>
+    <h1 class="tb-title" id="tb-title">데이터 준비</h1>
+  </div>
+  <div class="tb-stats">
+    <div class="tb-chip"><i class="fas fa-table"></i><span id="st-ds">0</span><em>데이터셋</em></div>
+    <div class="tb-chip"><i class="fas fa-cube"></i><span id="st-mdl">0</span><em>모델</em></div>
+  </div>
+</header>
+
+<!-- ═══════════════ PAGES ═══════════════ -->
+<main class="main-wrap">
+
+<!-- ╔══════════════════════════════════════╗
+     ║  PAGE 1 — 데이터 준비               ║
+     ╚══════════════════════════════════════╝ -->
+<section class="page active" id="page-data-prep">
+
+  <div class="page-hero p1">
+    <i class="fas fa-database hero-icon"></i>
+    <div>
+      <h2>데이터 준비</h2>
+      <p>ChEMBL / BindingDB 수집 → Decoy 생성 → Fingerprint + Descriptor 변환까지 순서대로 실행하세요</p>
+    </div>
+  </div>
+
+  <!-- Step A: 데이터 수집 -->
+  <div class="pcard">
+    <div class="pcard-head">
+      <div class="pcard-badge b1">A</div>
+      <div>
+        <h3>데이터 수집</h3>
+        <p>ChEMBL API + BindingDB에서 IC50 데이터를 자동 수집합니다</p>
+      </div>
+      <div class="pcard-status" id="st-collect"><span class="dot-idle"></span>대기</div>
+    </div>
+    <div class="pcard-body">
+      <div class="field-row">
+        <div class="field">
+          <label>타겟 단백질 <span class="badge-tip">쉼표 구분</span></label>
+          <input id="inp-proteins" type="text" placeholder="예: PDE4, PDE5, FTO" class="inp"/>
+        </div>
+        <div class="field field-sm">
+          <label>표준 타입</label>
+          <select id="inp-stdtype" class="inp">
+            <option value="IC50" selected>IC50</option>
+            <option value="Ki">Ki</option>
+            <option value="Kd">Kd</option>
+          </select>
+        </div>
+        <button class="btn btn-p1" id="btn-collect" onclick="runCollect()">
+          <i class="fas fa-cloud-download-alt"></i> 수집 시작
+        </button>
+      </div>
+      <div id="res-collect" class="result-box hidden"></div>
+    </div>
+  </div>
+
+  <!-- Step B: Decoy 생성 -->
+  <div class="pcard">
+    <div class="pcard-head">
+      <div class="pcard-badge b2">B</div>
+      <div>
+        <h3>Decoy 생성 <span class="optional-tag">선택</span></h3>
+        <p>DUD-E 방식으로 활성 화합물과 물리화학적 특성이 유사한 비활성 화합물을 생성합니다</p>
+      </div>
+      <div class="pcard-status" id="st-decoy"><span class="dot-idle"></span>대기</div>
+    </div>
+    <div class="pcard-body">
+      <div class="field-row">
+        <div class="field">
+          <label>단백질 선택</label>
+          <select id="inp-decoy-protein" class="inp" disabled>
+            <option value="">↑ 먼저 수집하세요</option>
+          </select>
+        </div>
+        <div class="field field-sm">
+          <label>Decoy 비율</label>
+          <select id="inp-decoy-ratio" class="inp">
+            <option value="10">1:10</option>
+            <option value="30">1:30</option>
+            <option value="50" selected>1:50 (권장)</option>
+            <option value="100">1:100</option>
+          </select>
+        </div>
+        <div class="field field-sm">
+          <label>활성 임계값 (nM)</label>
+          <input id="inp-pos-thr" type="number" value="10000" class="inp"/>
+        </div>
+        <div class="field field-sm">
+          <label>비활성 임계값 (nM)</label>
+          <input id="inp-neg-thr" type="number" value="20000" class="inp"/>
+        </div>
+        <button class="btn btn-p2" id="btn-decoy" onclick="runDecoy()">
+          <i class="fas fa-balance-scale"></i> Decoy 생성
+        </button>
+      </div>
+      <div id="res-decoy" class="result-box hidden"></div>
+    </div>
+  </div>
+
+  <!-- Step C: 특성 변환 -->
+  <div class="pcard">
+    <div class="pcard-head">
+      <div class="pcard-badge b3">C</div>
+      <div>
+        <h3>특성 변환</h3>
+        <p>SMILES를 Fingerprint + Molecular Descriptor로 변환하여 학습용 데이터셋을 만듭니다</p>
+      </div>
+      <div class="pcard-status" id="st-transform"><span class="dot-idle"></span>대기</div>
+    </div>
+    <div class="pcard-body">
+      <div class="field-row">
+        <div class="field">
+          <label>단백질 선택</label>
+          <select id="inp-trans-protein" class="inp" disabled>
+            <option value="">↑ 먼저 수집하세요</option>
+          </select>
+        </div>
+        <div class="field field-sm">
+          <label>Fingerprint 타입</label>
+          <select id="inp-fptype" class="inp">
+            <option value="MACCS">MACCS (167 bit)</option>
+            <option value="ECFP4" selected>ECFP4 (1024 bit)</option>
+            <option value="MORGAN">MORGAN (1024 bit)</option>
+          </select>
+        </div>
+        <div class="field field-sm">
+          <label>데이터셋 비율</label>
+          <select id="inp-dsr" class="inp">
+            <option value="5x">5×</option>
+            <option value="10x">10×</option>
+            <option value="20x" selected>20×</option>
+          </select>
+        </div>
+        <div class="field field-sm">
+          <label>Descriptor</label>
+          <select id="inp-3d" class="inp">
+            <option value="true" selected>2D만 (빠름)</option>
+            <option value="false">2D+3D</option>
+          </select>
+        </div>
+        <button class="btn btn-p3" id="btn-transform" onclick="runTransform()">
+          <i class="fas fa-cogs"></i> 변환 실행
+        </button>
+      </div>
+      <div id="res-transform" class="result-box hidden"></div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ╔══════════════════════════════════════╗
+     ║  PAGE 2 — 모델 학습                 ║
+     ╚══════════════════════════════════════╝ -->
+<section class="page" id="page-train">
+
+  <div class="page-hero p2">
+    <i class="fas fa-brain hero-icon"></i>
+    <div>
+      <h2>모델 학습</h2>
+      <p>비교할 모델을 다중 선택하고 동시에 학습하세요. 학습 후 결과 비교 페이지에서 성능을 확인할 수 있습니다.</p>
+    </div>
+  </div>
+
+  <div class="pcard">
+    <div class="pcard-head">
+      <div class="pcard-badge b4">설정</div>
+      <div><h3>학습 파라미터</h3><p>단백질과 학습 옵션을 지정하세요</p></div>
+    </div>
+    <div class="pcard-body">
+      <div class="field-row">
+        <div class="field">
+          <label>단백질 선택</label>
+          <select id="inp-train-protein" class="inp">
+            <option value="">데이터 준비 페이지에서 수집 후 선택</option>
+          </select>
+        </div>
+        <div class="field field-sm">
+          <label>테스트 비율</label>
+          <select id="inp-test-size" class="inp">
+            <option value="0.1">10%</option>
+            <option value="0.2" selected>20%</option>
+            <option value="0.3">30%</option>
+          </select>
+        </div>
+        <div class="field field-sm">
+          <label>랜덤 시드</label>
+          <input id="inp-seed" type="number" value="42" class="inp"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pcard">
+    <div class="pcard-head">
+      <div class="pcard-badge b4">모델</div>
+      <div><h3>학습할 모델 선택 <span class="badge-tip">복수 선택 가능</span></h3><p>선택한 모든 모델을 순차적으로 학습합니다</p></div>
+    </div>
+    <div class="pcard-body">
+      <div class="model-select-grid">
+        <label class="model-card" data-model="XGBoost">
+          <input type="checkbox" value="XGBoost" checked/>
+          <div class="mc-icon" style="background:#fef3c7;color:#d97706"><i class="fas fa-bolt"></i></div>
+          <div class="mc-name">XGBoost</div>
+          <div class="mc-desc">그래디언트 부스팅<br>범용·안정적</div>
+        </label>
+        <label class="model-card" data-model="LightGBM">
+          <input type="checkbox" value="LightGBM"/>
+          <div class="mc-icon" style="background:#ecfdf5;color:#059669"><i class="fas fa-leaf"></i></div>
+          <div class="mc-name">LightGBM</div>
+          <div class="mc-desc">고속 부스팅<br>대용량 데이터</div>
+        </label>
+        <label class="model-card" data-model="CatBoost">
+          <input type="checkbox" value="CatBoost"/>
+          <div class="mc-icon" style="background:#fce7f3;color:#be185d"><i class="fas fa-cat"></i></div>
+          <div class="mc-name">CatBoost</div>
+          <div class="mc-desc">범주형 특화<br>과적합 방지</div>
+        </label>
+        <label class="model-card" data-model="RandomForest">
+          <input type="checkbox" value="RandomForest"/>
+          <div class="mc-icon" style="background:#f0fdf4;color:#16a34a"><i class="fas fa-tree"></i></div>
+          <div class="mc-name">RandomForest</div>
+          <div class="mc-desc">앙상블 기반<br>기본 baseline</div>
+        </label>
+        <label class="model-card" data-model="TabPFN">
+          <input type="checkbox" value="TabPFN"/>
+          <div class="mc-icon" style="background:#ede9fe;color:#7c3aed"><i class="fas fa-magic"></i></div>
+          <div class="mc-name">TabPFN</div>
+          <div class="mc-desc">Few-shot<br>소량 데이터 특화</div>
+        </label>
+      </div>
+
+      <div class="train-run-bar">
+        <button class="btn btn-train-big" id="btn-train" onclick="runTrainAll()">
+          <i class="fas fa-play-circle"></i>
+          <span>선택 모델 학습 시작</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 학습 진행 로그 -->
+  <div class="pcard hidden" id="train-progress-card">
+    <div class="pcard-head">
+      <div class="pcard-badge b4"><i class="fas fa-spinner fa-spin" id="train-spin"></i></div>
+      <div><h3>학습 진행 상황</h3></div>
+    </div>
+    <div class="pcard-body">
+      <div id="train-log" class="train-log"></div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ╔══════════════════════════════════════╗
+     ║  PAGE 3 — 결과 비교                 ║
+     ╚══════════════════════════════════════╝ -->
+<section class="page" id="page-results">
+
+  <div class="page-hero p3">
+    <i class="fas fa-chart-bar hero-icon"></i>
+    <div>
+      <h2>모델 결과 비교</h2>
+      <p>학습된 모델들의 성능 지표를 차트와 표로 한눈에 비교합니다</p>
+    </div>
+  </div>
+
+  <div class="pcard">
+    <div class="pcard-head">
+      <div class="pcard-badge b5">필터</div>
+      <div><h3>비교할 모델 선택</h3></div>
+      <button class="btn btn-sm btn-ghost" onclick="loadCompareModels()"><i class="fas fa-sync-alt"></i> 불러오기</button>
+    </div>
+    <div class="pcard-body">
+      <div id="compare-model-list" class="compare-check-grid">
+        <p class="muted">불러오기 버튼을 눌러 모델 목록을 가져오세요</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 지표 비교 차트 -->
+  <div class="two-col">
+    <div class="pcard">
+      <div class="pcard-head"><div class="pcard-badge b5">차트</div><div><h3>ROC-AUC 비교</h3></div></div>
+      <div class="pcard-body chart-wrap"><canvas id="chart-auc"></canvas></div>
+    </div>
+    <div class="pcard">
+      <div class="pcard-head"><div class="pcard-badge b5">차트</div><div><h3>F1 / Precision / Recall</h3></div></div>
+      <div class="pcard-body chart-wrap"><canvas id="chart-metrics"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 상세 표 -->
+  <div class="pcard">
+    <div class="pcard-head"><div class="pcard-badge b5">표</div><div><h3>상세 성능 지표</h3></div></div>
+    <div class="pcard-body">
+      <div class="table-scroll">
+        <table class="metrics-table" id="metrics-table">
+          <thead>
+            <tr>
+              <th>모델 ID</th><th>타입</th><th>단백질</th>
+              <th>Accuracy</th><th>Precision</th><th>Recall</th>
+              <th>F1</th><th>ROC-AUC</th><th>Train</th><th>Test</th>
+            </tr>
+          </thead>
+          <tbody id="metrics-tbody">
+            <tr><td colspan="10" class="empty-cell">모델을 불러오세요</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ╔══════════════════════════════════════╗
+     ║  PAGE 4 — SHAP 분석                 ║
+     ╚══════════════════════════════════════╝ -->
+<section class="page" id="page-shap">
+
+  <div class="page-hero p4">
+    <i class="fas fa-microscope hero-icon"></i>
+    <div>
+      <h2>SHAP 분석</h2>
+      <p>모델이 예측에 어떤 화학적 특성을 중요하게 사용하는지 시각화합니다</p>
+    </div>
+  </div>
+
+  <div class="pcard">
+    <div class="pcard-head">
+      <div class="pcard-badge b5">설정</div>
+      <div><h3>분석 대상 모델 선택</h3></div>
+    </div>
+    <div class="pcard-body">
+      <div class="field-row">
+        <div class="field">
+          <label>분석할 모델</label>
+          <select id="inp-shap-model" class="inp">
+            <option value="">결과 비교 페이지에서 모델 학습 후 선택</option>
+          </select>
+        </div>
+        <div class="field field-sm">
+          <label>상위 N개 특성</label>
+          <input id="inp-shap-n" type="number" value="20" min="5" max="50" class="inp"/>
+        </div>
+        <button class="btn btn-p4" id="btn-shap" onclick="runShap()">
+          <i class="fas fa-microscope"></i> SHAP 분석 실행
+        </button>
+      </div>
+      <p class="hint-text">⏱ SHAP 분석은 데이터 크기에 따라 수 분이 걸릴 수 있습니다</p>
+      <div id="res-shap-status" class="result-box hidden"></div>
+    </div>
+  </div>
+
+  <!-- SHAP 결과 -->
+  <div class="pcard hidden" id="shap-result-card">
+    <div class="pcard-head">
+      <div class="pcard-badge b5"><i class="fas fa-chart-bar"></i></div>
+      <div><h3>특성 중요도 결과</h3><p id="shap-model-label"></p></div>
+    </div>
+    <div class="pcard-body">
+      <div class="two-col">
+        <div>
+          <div class="chart-wrap" style="height:360px"><canvas id="chart-shap"></canvas></div>
+        </div>
+        <div id="shap-table-wrap">
+          <table class="metrics-table">
+            <thead><tr><th>#</th><th>특성 이름</th><th>SHAP 값</th><th>상대 중요도</th></tr></thead>
+            <tbody id="shap-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ╔══════════════════════════════════════╗
+     ║  PAGE 5 — 예측                      ║
+     ╚══════════════════════════════════════╝ -->
+<section class="page" id="page-predict">
+
+  <div class="page-hero p5">
+    <i class="fas fa-flask hero-icon"></i>
+    <div>
+      <h2>예측</h2>
+      <p>학습된 모델로 화합물의 활성 여부를 예측합니다. SMILES 직접 입력 또는 FooDB CSV 파일을 사용할 수 있습니다.</p>
+    </div>
+  </div>
+
+  <!-- 공통: 모델 선택 -->
+  <div class="pcard">
+    <div class="pcard-head">
+      <div class="pcard-badge b5">모델</div>
+      <div><h3>사용할 모델 선택</h3></div>
+      <button class="btn btn-sm btn-ghost" onclick="loadPredictModels()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+    </div>
+    <div class="pcard-body">
+      <div class="field-row">
+        <div class="field">
+          <select id="inp-pred-model" class="inp">
+            <option value="">새로고침 버튼을 눌러 모델을 불러오세요</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭 -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="smiles" onclick="switchTab('smiles',this)">
+      <i class="fas fa-pencil-alt"></i> SMILES 직접 입력
+    </button>
+    <button class="tab-btn" data-tab="foodb" onclick="switchTab('foodb',this)">
+      <i class="fas fa-seedling"></i> FooDB CSV 업로드
+    </button>
+  </div>
+
+  <!-- Tab: SMILES -->
+  <div class="tab-panel active" id="tab-smiles">
+    <div class="pcard">
+      <div class="pcard-head">
+        <div class="pcard-badge b5"><i class="fas fa-pencil-alt"></i></div>
+        <div><h3>SMILES 입력</h3><p>한 줄에 하나씩 SMILES를 입력하세요</p></div>
+        <div class="pcard-status" id="st-smiles"><span class="dot-idle"></span>대기</div>
+      </div>
+      <div class="pcard-body">
+        <textarea id="inp-smiles" class="inp-textarea" rows="6"
+          placeholder="한 줄에 하나씩 입력&#10;CCO&#10;CC(=O)O&#10;c1ccccc1C(=O)O&#10;CN1C=NC2=C1C(=O)N(C(=O)N2C)C"></textarea>
+        <div class="field-row" style="margin-top:.75rem">
+          <button class="btn btn-p5" id="btn-smiles-pred" onclick="runSmilesPred()">
+            <i class="fas fa-play-circle"></i> 예측 실행
+          </button>
+          <button class="btn btn-ghost" onclick="loadSampleSmiles()">
+            <i class="fas fa-vial"></i> 샘플 불러오기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: FooDB -->
+  <div class="tab-panel" id="tab-foodb">
+    <div class="pcard">
+      <div class="pcard-head">
+        <div class="pcard-badge b5"><i class="fas fa-seedling"></i></div>
+        <div>
+          <h3>FooDB CSV 업로드</h3>
+          <p>FooDB Compound.csv 파일을 업로드하여 전체 식품 화합물을 예측합니다</p>
+        </div>
+        <div class="pcard-status" id="st-foodb"><span class="dot-idle"></span>대기</div>
+      </div>
+      <div class="pcard-body">
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('inp-csv').click()">
+          <i class="fas fa-cloud-upload-alt"></i>
+          <p>CSV 파일을 여기에 드래그하거나 클릭해 업로드</p>
+          <span class="upload-hint">FooDB → Downloads → Compound.csv</span>
+          <input type="file" id="inp-csv" accept=".csv" style="display:none" onchange="onCsvSelect(event)"/>
+        </div>
+        <div id="csv-info" class="result-box hidden"></div>
+
+        <div class="field-row" style="margin-top:1rem">
+          <div class="field field-sm">
+            <label>상위 N개 결과</label>
+            <input id="inp-topn" type="number" value="100" min="1" max="5000" class="inp"/>
+          </div>
+          <div class="field field-sm">
+            <label>활성 확률 임계값</label>
+            <input id="inp-thresh" type="number" value="0.5" min="0" max="1" step="0.05" class="inp"/>
+          </div>
+          <div class="field field-sm">
+            <label>예측 범위</label>
+            <select id="inp-pred-mode" class="inp">
+              <option value="top">상위 N개만</option>
+              <option value="all">전체 예측</option>
+            </select>
+          </div>
+          <button class="btn btn-p5" id="btn-foodb-pred" onclick="runFoodbPred()">
+            <i class="fas fa-play-circle"></i> FooDB 예측
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 예측 결과 -->
+  <div class="pcard hidden" id="pred-result-card">
+    <div class="pcard-head">
+      <div class="pcard-badge b5"><i class="fas fa-check-circle"></i></div>
+      <div><h3>예측 결과</h3><p id="pred-result-summary"></p></div>
+      <button class="btn btn-sm btn-ghost" onclick="downloadPredResult()"><i class="fas fa-download"></i> CSV 다운로드</button>
+    </div>
+    <div class="pcard-body">
+      <!-- 통계 -->
+      <div class="pred-stats" id="pred-stats"></div>
+      <!-- 테이블 -->
+      <div class="table-scroll" style="margin-top:1rem">
+        <table class="metrics-table" id="pred-table">
+          <thead>
+            <tr>
+              <th>#</th><th>SMILES</th>
+              <th>활성 확률</th><th>예측</th>
+            </tr>
+          </thead>
+          <tbody id="pred-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+</main><!-- /main-wrap -->
+
+<!-- ─── TOAST ─── -->
+<div id="toast-stack"></div>
+
+<script src="/static/js/workflow.js?v=40"></script>
 </body>
 </html>

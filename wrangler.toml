@@ -1,0 +1,25 @@
+# ============================================
+# wrangler.toml — Cloudflare Pages 설정
+# ============================================
+# 이 파일은 Cloudflare Pages 배포에만 사용됩니다 (정적 프론트엔드).
+# 백엔드 FastAPI 서버는 별도 Docker/VPS에서 실행되어야 합니다.
+
+name = "pci-prediction"
+compatibility_date = "2024-01-01"
+
+# Pages 배포 디렉토리
+pages_build_output_dir = "static"
+
+# ── 환경별 설정 ──────────────────────────
+
+[env.production]
+name = "pci-prediction"
+
+[env.staging]
+name = "pci-prediction-staging"
+
+# ── 빌드 설정 ────────────────────────────
+# (정적 파일이므로 빌드 불필요)
+# [build]
+# command = ""
+# cwd = "."

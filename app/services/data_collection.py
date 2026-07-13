@@ -7,7 +7,13 @@ import pandas as pd
 
 class DataCollectionService:
     def __init__(self):
-        self.collector = ChemBLTargetCollector()
+        self._collector = None  # lazy init
+    
+    @property
+    def collector(self):
+        if self._collector is None:
+            self._collector = ChemBLTargetCollector()
+        return self._collector
     
     def collect_target_data(self, target_list: list, standard_type: str = "IC50", 
                            binding_db_folder: str = None):

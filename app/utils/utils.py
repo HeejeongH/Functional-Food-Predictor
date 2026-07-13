@@ -4,13 +4,29 @@ import numpy as np
 import glob
 import os
 
-from chembl_webresource_client.new_client import new_client
-from rdkit import Chem
-from rdkit.Chem import DataStructs, rdMolDescriptors
+try:
+    from chembl_webresource_client.new_client import new_client as _new_client
+    _chembl_available = True
+except Exception:
+    _new_client = None
+    _chembl_available = False
+
+try:
+    from rdkit import Chem
+    from rdkit.Chem import DataStructs, rdMolDescriptors
+    _rdkit_available = True
+except ImportError:
+    Chem = None
+    DataStructs = None
+    rdMolDescriptors = None
+    _rdkit_available = False
 
 # ChemBL Target Collector Class
 class ChemBLTargetCollector:
     def __init__(self):
+        if not _chembl_available:
+            raise RuntimeError("ChEMBL client not available (API connection failed)")
+        new_client = _new_client
         self.target = new_client.target
         self.activity = new_client.activity
 

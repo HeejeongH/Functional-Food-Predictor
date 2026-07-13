@@ -47,3 +47,30 @@ dist/
 *.tmp
 *.temp
 .cache/
+
+# ============================================
+# ML 학습 데이터 / 모델 파일 (용량 큼, git 제외)
+# ============================================
+# 학습된 모델 바이너리
+models_trained/*.pkl
+models_trained/*.joblib
+
+# 수집된 원시 데이터
+saved_data/IC50/
+saved_data/BindingDB/
+saved_data/FooDB/
+
+# 변환된 특성 데이터셋 (재생성 가능)
+raw/Dataset/
+raw/descriptors/
+raw/FewshotSet/
+raw/TransferSet/
+
+# SHAP 출력 이미지
+shap_outputs/
+
+# 예측 결과 CSV
+food_predictions/
+
+# 환경변수 파일
+.env

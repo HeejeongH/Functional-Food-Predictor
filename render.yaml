@@ -1,0 +1,30 @@
+# ============================================
+# Render.com 배포 설정
+# https://render.com/docs/render-yaml-spec
+# ============================================
+
+services:
+  - type: web
+    name: functional-food-predictor
+    runtime: python
+    region: singapore          # 한국과 가장 가까운 리전
+    plan: starter              # 무료: free / 유료: starter (권장, 메모리 512MB→2GB)
+
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+
+    # 환경 변수
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"
+      # TabPFN 사용 시 HuggingFace 토큰 — Render 대시보드에서 직접 입력
+      # - key: HF_TOKEN
+      #   value: hf_xxxxxxxxxxxx
+
+    # 헬스체크 (Render가 서비스 상태 모니터링)
+    healthCheckPath: /health
+
+    # 정적 파일 — FastAPI가 /static 경로로 직접 서빙하므로 별도 설정 불필요
+    # (app.mount("/static", StaticFiles(...)) 이미 설정됨)

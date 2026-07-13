@@ -1,0 +1,35 @@
+# ============================================
+# Cloudflare Tunnel 설정
+# ============================================
+# Cloudflare Zero Trust Tunnel을 통해 로컬/Docker 서버를 인터넷에 노출합니다.
+# 이 방식은 공개 IP가 없어도 배포 가능합니다.
+#
+# 사용법:
+#   1. Cloudflare Zero Trust 대시보드에서 터널 생성
+#      https://one.dash.cloudflare.com/ → Networks → Tunnels
+#   2. 터널 토큰을 .env 파일에 추가: CLOUDFLARE_TUNNEL_TOKEN=eyJ...
+#   3. docker-compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d
+
+version: '3.8'
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: pci-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      pci-api:
+        condition: service_healthy
+    networks:
+      - default
+
+  pci-api:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

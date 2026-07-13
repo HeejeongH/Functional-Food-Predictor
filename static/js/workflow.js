@@ -1,1327 +1,1068 @@
-// API Base URL
-const API_BASE_URL = '';
+/* =============================================================
+   PCI Prediction — Workflow Controller v4
+   5-Page SPA: data-prep / train / results / shap / predict
+   ============================================================= */
 
-// 전역 변수
-let collectedProteins = [];
-let lastTrainedModel = null;
+const API = window.location.origin;
 
-// 데이터 수집 (Step 1 사전 실행)
-async function collectData() {
-    const targetGenes = document.getElementById('target-genes').value.trim();
-    
-    if (!targetGenes) {
-        alert('수집할 단백질 리스트를 입력해주세요.');
-        return;
-    }
-    
-    const btn = document.getElementById('collect-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 수집 중...';
-    
-    try {
-        const targetList = targetGenes.split(',').map(s => s.trim()).filter(s => s);
-        
-        const response = await axios.post(`${API_BASE_URL}/api/data/collect`, {
-            target_list: targetList,
-            standard_type: 'IC50'
-        });
-        
-        // 수집된 단백질 저장
-        collectedProteins = targetList;
-        
-        // UI 업데이트
-        document.getElementById('collected-proteins').classList.remove('hidden');
-        document.getElementById('collected-proteins-list').innerHTML = 
-            `수집된 단백질: <strong>${collectedProteins.join(', ')}</strong> (${response.data.total_compounds}개 화합물)`;
-        
-        // 단백질 선택 드롭다운 활성화
-        const proteinSelect = document.getElementById('protein-name');
-        proteinSelect.disabled = false;
-        proteinSelect.innerHTML = collectedProteins.map(p => 
-            `<option value="${p}">${p}</option>`
-        ).join('');
-        
-        // Step 1 체크박스 자동 선택
-        document.getElementById('step1').checked = true;
-        updateStepCard(1);
-        updateStepStatus('step1', 'success');
-        
-        alert('데이터 수집 완료! 이제 단백질을 선택하고 다음 단계를 진행하세요.');
-        
-    } catch (error) {
-        alert('데이터 수집 실패: ' + (error.response?.data?.detail || error.message));
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-download"></i> 데이터 수집';
-    }
-}
+/* ──────────────────────────────────────────────────────────────
+   STATE
+────────────────────────────────────────────────────────────── */
+let collectedProteins   = [];   // proteins gathered in Page 1
+let lastTrainResults    = [];   // [{model_id, model_type, protein, metrics…}]
+let foodbUploadedPath   = null; // server path after upload
+let foodbUploadedSmiles = [];   // SMILES extracted from CSV client-side
+let predResults         = [];   // last prediction rows for CSV export
+let aucChart            = null;
+let metricsChart        = null;
+let shapChart           = null;
 
-// 단계 선택 토글
-function toggleStep(stepNum) {
-    const checkbox = document.getElementById(`step${stepNum}`);
-    checkbox.checked = !checkbox.checked;
-    updateStepCard(stepNum);
-    updateStepConfig(stepNum);
-}
+const PAGE_META = {
+  'data-prep': ['01', '데이터 준비'],
+  'train':     ['02', '모델 학습'],
+  'results':   ['03', '결과 비교'],
+  'shap':      ['04', 'SHAP 분석'],
+  'predict':   ['05', '예측'],
+};
 
-// 단계 직접 선택
-function selectStep(stepNum) {
-    const checkbox = document.getElementById(`step${stepNum}`);
-    checkbox.checked = true;
-    updateStepCard(stepNum);
-    updateStepConfig(stepNum);
-}
-
-// 단계별 설정 폼 표시/숨김
-function updateStepConfig(stepNum) {
-    // Step 1: 데이터 수집 폼은 항상 표시
-    const step1Config = document.getElementById('step1-config');
-    if (step1Config) {
-        step1Config.style.display = 'block'; // 항상 표시
-    }
-    
-    // Step 2, Step 6, Step 7 체크 상태 확인
-    const step2Checkbox = document.getElementById('step2');
-    const step6Checkbox = document.getElementById('step6');
-    const step7Checkbox = document.getElementById('step7');
-    const step2Checked = step2Checkbox ? step2Checkbox.checked : false;
-    const step6Checked = step6Checkbox ? step6Checkbox.checked : false;
-    const step7Checked = step7Checkbox ? step7Checkbox.checked : false;
-    
-    // Step 2: Decoy 생성 옵션 폼 (Step 2가 선택되었을 때만 표시)
-    const step2ConfigRatio = document.getElementById('step2-config-ratio');
-    const step2ConfigPos = document.getElementById('step2-config-pos');
-    const step2ConfigNeg = document.getElementById('step2-config-neg');
-    
-    if (step2ConfigRatio) step2ConfigRatio.style.display = step2Checked ? 'block' : 'none';
-    if (step2ConfigPos) step2ConfigPos.style.display = step2Checked ? 'block' : 'none';
-    if (step2ConfigNeg) step2ConfigNeg.style.display = step2Checked ? 'block' : 'none';
-    
-    // Step 6: SMILES 입력 폼 (Step 6만 선택되었을 때만 표시)
-    const step6Config = document.getElementById('step6-config');
-    if (step6Config) {
-        step6Config.style.display = step6Checked ? 'block' : 'none';
-    }
-    
-    // Step 7: FooDB 옵션 폼 (Step 7이 선택되었을 때만 표시)
-    const step7ConfigMode = document.getElementById('step7-config-mode');
-    const step7ConfigTop = document.getElementById('step7-config-top');
-    const step7ConfigThreshold = document.getElementById('step7-config-threshold');
-    
-    if (step7ConfigMode) step7ConfigMode.style.display = step7Checked ? 'block' : 'none';
-    if (step7ConfigTop) step7ConfigTop.style.display = step7Checked ? 'block' : 'none';
-    if (step7ConfigThreshold) step7ConfigThreshold.style.display = step7Checked ? 'block' : 'none';
-}
-
-// 단계 카드 업데이트
-function updateStepCard(stepNum) {
-    const checkbox = document.getElementById(`step${stepNum}`);
-    const card = checkbox.closest('.step-card');
-    
-    if (checkbox.checked) {
-        card.classList.add('selected');
-    } else {
-        card.classList.remove('selected');
-    }
-}
-
-// 워크플로우 실행
-async function executeWorkflow() {
-    // 선택된 단계 확인 (Step 1 제외 - 사전에 수집해야 함)
-    const steps = [
-        { id: 'step2', name: 'Decoy 생성', fn: executeDecoyGeneration },
-        { id: 'step3', name: '특성 변환', fn: executeFeatureTransform },
-        { id: 'step4', name: '모델 학습', fn: executeModelTraining },
-        { id: 'step5', name: 'SHAP 분석', fn: executeSHAPAnalysis },
-        { id: 'step6', name: 'SMILES 예측', fn: executeSMILESPrediction },
-        { id: 'step7', name: 'FooDB 예측', fn: executeFooDBPrediction }
-    ];
-
-    const selectedSteps = steps.filter(step => document.getElementById(step.id).checked);
-
-    if (selectedSteps.length === 0) {
-        alert('실행할 단계를 최소 1개 이상 선택해주세요.');
-        return;
-    }
-
-    // 유효성 검사
-    const proteinName = document.getElementById('protein-name').value;
-    if (!proteinName) {
-        alert('먼저 데이터를 수집하고 단백질을 선택해주세요.');
-        return;
-    }
-
-    // Step 6 선택 시 SMILES 필수
-    if (selectedSteps.find(s => s.id === 'step6')) {
-        const smiles = document.getElementById('smiles-input').value.trim();
-        if (!smiles) {
-            alert('SMILES 예측을 위해 SMILES 리스트를 입력해주세요.');
-            return;
-        }
-    }
-
-    // 진행 상황 섹션 표시
-    document.getElementById('progress-section').classList.remove('hidden');
-    document.getElementById('results-section').classList.add('hidden');
-    
-    const progressContainer = document.getElementById('progress-container');
-    const resultsContainer = document.getElementById('results-container');
-    progressContainer.innerHTML = '';
-    resultsContainer.innerHTML = '';
-
-    // 각 단계 실행
-    for (let i = 0; i < selectedSteps.length; i++) {
-        const step = selectedSteps[i];
-        // FIX: step2는 실제로 Step 2이므로 +2를 해야 함
-        const stepNumber = steps.findIndex(s => s.id === step.id) + 2;
-
-        // 진행 상황 아이템 생성
-        const progressItem = createProgressItem(stepNumber, step.name, 'running');
-        progressContainer.appendChild(progressItem);
-
-        // 상태 업데이트
-        updateStepStatus(step.id, 'running');
-
-        try {
-            // 단계 실행
-            const result = await step.fn();
-            
-            // 성공 처리
-            updateProgressItem(progressItem, 'completed', result.message || '완료');
-            updateStepStatus(step.id, 'success');
-
-            // 결과 카드 추가
-            const resultCard = createResultCard(stepNumber, step.name, result);
-            resultsContainer.appendChild(resultCard);
-            document.getElementById('results-section').classList.remove('hidden');
-
-        } catch (error) {
-            // 실패 처리
-            console.error(`${step.name} 오류:`, error);
-            
-            let errorMsg = error.message || '오류 발생';
-            
-            // error.response?.data?.detail이 객체인 경우 JSON으로 변환
-            if (error.response?.data?.detail) {
-                const detail = error.response.data.detail;
-                if (typeof detail === 'object') {
-                    errorMsg = JSON.stringify(detail, null, 2);
-                } else {
-                    errorMsg = detail;
-                }
-            }
-            
-            updateProgressItem(progressItem, 'failed', errorMsg);
-            updateStepStatus(step.id, 'error');
-            
-            alert(`${step.name} 실패:\n${errorMsg}`);
-            break; // 실패 시 중단
-        }
-    }
-}
-
-// 진행 상황 아이템 생성
-function createProgressItem(stepNumber, stepName, status) {
-    const item = document.createElement('div');
-    item.className = `progress-item ${status}`;
-    
-    let iconClass = 'fa-circle';
-    if (status === 'running') iconClass = 'fa-spinner fa-spin';
-    if (status === 'completed') iconClass = 'fa-check-circle';
-    if (status === 'failed') iconClass = 'fa-times-circle';
-    
-    item.innerHTML = `
-        <div class="progress-icon ${status}">
-            <i class="fas ${iconClass}"></i>
-        </div>
-        <div class="progress-content">
-            <div class="progress-title">${stepNumber}. ${stepName}</div>
-            <div class="progress-detail">${status === 'running' ? '실행 중...' : ''}</div>
-        </div>
-    `;
-    
-    return item;
-}
-
-// 진행 상황 업데이트
-function updateProgressItem(item, status, message) {
-    item.className = `progress-item ${status}`;
-    
-    const icon = item.querySelector('.progress-icon');
-    icon.className = `progress-icon ${status}`;
-    
-    let iconClass = 'fa-circle';
-    if (status === 'running') iconClass = 'fa-spinner fa-spin';
-    if (status === 'completed') iconClass = 'fa-check-circle';
-    if (status === 'failed') iconClass = 'fa-times-circle';
-    
-    icon.innerHTML = `<i class="fas ${iconClass}"></i>`;
-    
-    const detail = item.querySelector('.progress-detail');
-    detail.textContent = message;
-}
-
-// 단계 상태 업데이트
-function updateStepStatus(stepId, status) {
-    const stepNum = stepId.replace('step', '');
-    const statusElement = document.getElementById(`status${stepNum}`);
-    statusElement.className = `step-status ${status}`;
-    
-    let iconClass = 'fa-circle';
-    let text = '대기중';
-    
-    if (status === 'running') {
-        iconClass = 'fa-spinner fa-spin';
-        text = '실행중';
-    } else if (status === 'success') {
-        iconClass = 'fa-check-circle';
-        text = '완료';
-    } else if (status === 'error') {
-        iconClass = 'fa-times-circle';
-        text = '실패';
-    }
-    
-    statusElement.innerHTML = `<i class="fas ${iconClass}"></i><span>${text}</span>`;
-}
-
-// 결과 카드 생성
-function createResultCard(stepNumber, stepName, result) {
-    const card = document.createElement('div');
-    card.className = 'result-card fade-in';
-    
-    // Step별 특화 UI
-    if (stepNumber === 1) {
-        // 데이터 수집 결과
-        card.innerHTML = createDataCollectionResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 2) {
-        // DUD-E Decoy 생성 결과
-        card.innerHTML = createDecoyGenerationResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 3) {
-        // 특성 변환 결과
-        card.innerHTML = createFeatureTransformResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 4) {
-        // 모델 학습 결과
-        card.innerHTML = createModelResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 5) {
-        // SHAP 분석 결과
-        card.innerHTML = createSHAPResultUI(stepNumber, stepName, result);
-    } else if (stepNumber === 6 || stepNumber === 7) {
-        // SMILES/FooDB 예측 결과
-        card.innerHTML = createPredictionResultUI(stepNumber, stepName, result);
-    } else {
-        // 기본 UI
-        card.innerHTML = createDefaultResultUI(stepNumber, stepName, result);
-    }
-    
-    return card;
-}
-
-// 기본 결과 UI
-function createDefaultResultUI(stepNumber, stepName, result) {
-    let content = `<h4><i class="fas fa-check-circle" style="color: #10b981; margin-right: 0.5rem;"></i>${stepNumber}. ${stepName} 결과</h4>`;
-    content += '<div class="result-grid">';
-    
-    for (const [key, value] of Object.entries(result)) {
-        if (key !== 'message') {
-            const label = formatLabel(key);
-            content += `
-                <div class="result-item">
-                    <div class="result-label">${label}</div>
-                    <div class="result-value">${formatValue(key, value)}</div>
-                </div>
-            `;
-        }
-    }
-    
-    content += '</div>';
-    return content;
-}
-
-// Step 1: 데이터 수집 결과 UI
-function createDataCollectionResultUI(stepNumber, stepName, result) {
-    const totalCompounds = result.total_compounds || 0;
-    const proteinName = result.protein_name || 'N/A';
-    const activeCompounds = result.active_compounds || 0;
-    const inactiveCompounds = result.inactive_compounds || 0;
-    
-    const activePercent = totalCompounds > 0 ? ((activeCompounds / totalCompounds) * 100).toFixed(1) : 0;
-    
-    return `
-        <div style="padding: 1.5rem;">
-            <!-- 헤더 -->
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-download" style="color: white; font-size: 24px;"></i>
-                </div>
-                <div>
-                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
-                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">단백질: ${proteinName}</p>
-                </div>
-            </div>
-            
-            <!-- 통계 카드 -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <!-- 총 화합물 -->
-                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #93c5fd;">
-                    <div style="color: #1e40af; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">총 화합물</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #1d4ed8;">${totalCompounds.toLocaleString()}</div>
-                </div>
-                
-                <!-- 활성 화합물 -->
-                <div style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #86efac;">
-                    <div style="color: #166534; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">활성 화합물</div>
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span style="font-size: 2rem; font-weight: 700; color: #15803d;">${activeCompounds.toLocaleString()}</span>
-                        <span style="font-size: 1rem; color: #166534;">(${activePercent}%)</span>
-                    </div>
-                </div>
-                
-                <!-- 비활성 화합물 -->
-                <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #fca5a5;">
-                    <div style="color: #991b1b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">비활성 화합물</div>
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span style="font-size: 2rem; font-weight: 700; color: #b91c1c;">${inactiveCompounds.toLocaleString()}</span>
-                        <span style="font-size: 1rem; color: #991b1b;">(${(100 - activePercent).toFixed(1)}%)</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 데이터 출처 -->
-            <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                    <i class="fas fa-database" style="color: #6b7280;"></i>
-                    <h4 style="margin: 0; font-weight: 600; color: #374151;">데이터 출처</h4>
-                </div>
-                <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.75rem 1.5rem; font-size: 0.875rem;">
-                    <span style="color: #6b7280; font-weight: 500;">표준 타입:</span>
-                    <span style="color: #111827;">${result.standard_type || 'IC50'}</span>
-                    <span style="color: #6b7280; font-weight: 500;">데이터베이스:</span>
-                    <span style="color: #111827;">ChEMBL / BindingDB</span>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Step 2: 특성 변환 결과 UI
-function createFeatureTransformResultUI(stepNumber, stepName, result) {
-    console.log('Step 2 result data:', result);
-    
-    const proteinName = result.protein_name || 'N/A';
-    const totalFeatures = result.feature_count || result.total_features || 0;
-    const fingerprintSize = result.fingerprint_size || 0;
-    const descriptorCount = result.descriptor_count || 0;
-    const totalCompounds = result.total_compounds || 0;
-    const activeCompounds = result.active_compounds || 0;
-    const inactiveCompounds = result.inactive_compounds || 0;
-    
-    return `
-        <div style="padding: 1.5rem;">
-            <!-- 헤더 -->
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-cogs" style="color: white; font-size: 24px;"></i>
-                </div>
-                <div>
-                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
-                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">단백질: ${proteinName}</p>
-                </div>
-            </div>
-            
-            <!-- 특성 통계 -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <!-- Fingerprint -->
-                <div style="background: linear-gradient(135deg, #fae8ff 0%, #f3e8ff 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #d8b4fe;">
-                    <div style="color: #6b21a8; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Fingerprint</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #7c3aed;">${fingerprintSize.toLocaleString()}</div>
-                    <div style="color: #6b21a8; font-size: 0.75rem; margin-top: 0.25rem;">${result.fingerprint_type || 'MACCS'}</div>
-                </div>
-                
-                <!-- Descriptor -->
-                <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #a5b4fc;">
-                    <div style="color: #3730a3; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Descriptor</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #4f46e5;">${descriptorCount.toLocaleString()}</div>
-                    <div style="color: #3730a3; font-size: 0.75rem; margin-top: 0.25rem;">선택된 특성</div>
-                </div>
-                
-                <!-- 총 특성 -->
-                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #93c5fd;">
-                    <div style="color: #1e40af; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">총 특성</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #1d4ed8;">${totalFeatures.toLocaleString()}</div>
-                    <div style="color: #1e40af; font-size: 0.75rem; margin-top: 0.25rem;">${fingerprintSize} + ${descriptorCount}</div>
-                </div>
-            </div>
-            
-            <!-- 화합물 정보 -->
-            ${(totalCompounds > 0 || activeCompounds > 0 || inactiveCompounds > 0) ? `
-                <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                        <i class="fas fa-flask" style="color: #6b7280;"></i>
-                        <h4 style="margin: 0; font-weight: 600; color: #374151;">화합물 통계</h4>
-                    </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
-                        <div>
-                            <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">총 화합물</div>
-                            <div style="color: #111827; font-weight: 600; font-size: 1.25rem;">${totalCompounds.toLocaleString()}</div>
-                        </div>
-                        <div>
-                            <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">활성 화합물</div>
-                            <div style="color: #15803d; font-weight: 600; font-size: 1.25rem;">${activeCompounds.toLocaleString()}</div>
-                        </div>
-                        <div>
-                            <div style="color: #6b7280; font-size: 0.813rem; margin-bottom: 0.25rem;">비활성 화합물</div>
-                            <div style="color: #b91c1c; font-weight: 600; font-size: 1.25rem;">${inactiveCompounds.toLocaleString()}</div>
-                        </div>
-                    </div>
-                </div>
-            ` : ''}
-            
-            <!-- 출력 파일 -->
-            ${result.output_file ? `
-                <div style="margin-top: 1rem; padding: 1rem; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #6b7280; font-size: 0.875rem;">
-                        <i class="fas fa-file-csv"></i>
-                        <span>출력 파일: <strong style="color: #111827;">${result.output_file}</strong></span>
-                    </div>
-                </div>
-            ` : ''}
-        </div>
-    `;
-}
-
-// 예측 결과 UI (FooDB, SMILES)
-function createPredictionResultUI(stepNumber, stepName, result) {
-    const totalCount = result.total_count || 0;
-    const activeCount = result.active_count || 0;
-    const inactiveCount = result.inactive_count || 0;
-    const filteredCount = result.filtered_count || result.top_predictions?.length || 0;
-    const threshold = result.threshold || 0.5;
-    const predictions = result.top_predictions || result.predictions || [];
-    
-    const activePercent = totalCount > 0 ? ((activeCount / totalCount) * 100).toFixed(1) : 0;
-    const inactivePercent = totalCount > 0 ? ((inactiveCount / totalCount) * 100).toFixed(1) : 0;
-    
-    return `
-        <div style="padding: 1.5rem;">
-            <!-- 헤더 -->
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-flask" style="color: white; font-size: 24px;"></i>
-                </div>
-                <div>
-                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
-                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">모델: ${result.model_id || 'N/A'}</p>
-                </div>
-            </div>
-            
-            <!-- 통계 카드 -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <!-- 전체 화합물 -->
-                <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #d1d5db;">
-                    <div style="color: #6b7280; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">전체 화합물</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #111827;">${totalCount.toLocaleString()}</div>
-                </div>
-                
-                <!-- 활성 예측 -->
-                <div style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #86efac;">
-                    <div style="color: #166534; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">활성 예측</div>
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span style="font-size: 2rem; font-weight: 700; color: #15803d;">${activeCount.toLocaleString()}</span>
-                        <span style="font-size: 1rem; color: #166534;">(${activePercent}%)</span>
-                    </div>
-                </div>
-                
-                <!-- 비활성 예측 -->
-                <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #fca5a5;">
-                    <div style="color: #991b1b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">비활성 예측</div>
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span style="font-size: 2rem; font-weight: 700; color: #b91c1c;">${inactiveCount.toLocaleString()}</span>
-                        <span style="font-size: 1rem; color: #991b1b;">(${inactivePercent}%)</span>
-                    </div>
-                </div>
-                
-                <!-- 임계값 이상 -->
-                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #93c5fd;">
-                    <div style="color: #1e40af; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">임계값 ≥ ${threshold}</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #1d4ed8;">${filteredCount.toLocaleString()}</div>
-                </div>
-            </div>
-            
-            <!-- 비율 차트 -->
-            <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: white; border-radius: 12px; border: 1px solid #e5e7eb;">
-                <div style="font-weight: 600; margin-bottom: 1rem; color: #374151;">활성/비활성 비율</div>
-                <div style="display: flex; height: 40px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
-                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: ${activePercent}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
-                        ${activePercent > 10 ? `활성 ${activePercent}%` : ''}
-                    </div>
-                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); width: ${inactivePercent}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
-                        ${inactivePercent > 10 ? `비활성 ${inactivePercent}%` : ''}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 상위 예측 결과 테이블 -->
-            ${predictions.length > 0 ? `
-                <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
-                    <div style="padding: 1rem 1.25rem; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-bottom: 1px solid #e5e7eb;">
-                        <h4 style="margin: 0; font-weight: 600; color: #374151;">🏆 상위 ${predictions.length}개 화합물</h4>
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
-                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.875rem;">순위</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.875rem;">SMILES</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: center; font-weight: 600; color: #6b7280; font-size: 0.875rem;">예측</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: #6b7280; font-size: 0.875rem;">활성 확률</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: #6b7280; font-size: 0.875rem;">신뢰도</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${predictions.map((pred, i) => {
-                                    const prob = (pred.active_probability || pred.probability_active || 0) * 100;
-                                    const isActive = pred.prediction === 1 || prob >= 50;
-                                    const rankBadge = i < 3 ? ['🥇', '🥈', '🥉'][i] : `#${i + 1}`;
-                                    
-                                    return `
-                                        <tr style="border-bottom: 1px solid #f3f4f6; transition: background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
-                                            <td style="padding: 0.75rem 1rem;">
-                                                <span style="font-size: 1.25rem;">${rankBadge}</span>
-                                            </td>
-                                            <td style="padding: 0.75rem 1rem; font-family: 'Courier New', monospace; font-size: 0.813rem; color: #374151; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${pred.smiles || 'N/A'}">
-                                                ${pred.smiles || 'N/A'}
-                                            </td>
-                                            <td style="padding: 0.75rem 1rem; text-align: center;">
-                                                <span style="display: inline-block; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.813rem; font-weight: 600; 
-                                                    ${isActive ? 'background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); color: #15803d; border: 1px solid #86efac;' : 'background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #b91c1c; border: 1px solid #fca5a5;'}">
-                                                    ${isActive ? '✓ 활성' : '✗ 비활성'}
-                                                </span>
-                                            </td>
-                                            <td style="padding: 0.75rem 1rem; text-align: right;">
-                                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
-                                                    <span style="font-family: 'Courier New', monospace; font-weight: 600; font-size: 0.938rem; color: ${prob >= 70 ? '#15803d' : prob >= 50 ? '#ca8a04' : '#6b7280'};">
-                                                        ${prob.toFixed(2)}%
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td style="padding: 0.75rem 1rem; text-align: right;">
-                                                <div style="width: 80px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
-                                                    <div style="width: ${prob}%; height: 100%; background: linear-gradient(90deg, 
-                                                        ${prob >= 70 ? '#10b981, #059669' : prob >= 50 ? '#f59e0b, #d97706' : '#6b7280, #4b5563'}); 
-                                                        border-radius: 4px; transition: width 0.3s ease;"></div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            ` : '<p style="color: #6b7280; text-align: center; padding: 2rem;">예측 결과가 없습니다.</p>'}
-        </div>
-    `;
-}
-
-// SHAP 분석 결과 UI
-function createSHAPResultUI(stepNumber, stepName, result) {
-    const topFeatures = result.top_features || [];
-    const summary = result.shap_values_summary || {};
-    const plotPath = result.plot_path || '';
-    
-    return `
-        <div style="padding: 1.5rem;">
-            <!-- 헤더 -->
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-lightbulb" style="color: white; font-size: 24px;"></i>
-                </div>
-                <div>
-                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
-                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">모델: ${result.model_id || 'N/A'}</p>
-                </div>
-            </div>
-            
-            <!-- SHAP 통계 -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 1rem; border-radius: 12px; border: 1px solid #fbbf24;">
-                    <div style="color: #92400e; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem;">평균 |SHAP|</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #b45309; font-family: monospace;">${(summary.mean_abs_shap || 0).toFixed(4)}</div>
-                </div>
-                <div style="background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); padding: 1rem; border-radius: 12px; border: 1px solid #fb923c;">
-                    <div style="color: #7c2d12; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem;">최대 |SHAP|</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #9a3412; font-family: monospace;">${(summary.max_abs_shap || 0).toFixed(4)}</div>
-                </div>
-                <div style="background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%); padding: 1rem; border-radius: 12px; border: 1px solid #a78bfa;">
-                    <div style="color: #5b21b6; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem;">분석 샘플</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #6d28d9; font-family: monospace;">${summary.samples_analyzed || 0}</div>
-                </div>
-            </div>
-            
-            ${topFeatures.length > 0 ? `
-                <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; margin-bottom: 1.5rem;">
-                    <div style="padding: 1rem 1.25rem; background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-bottom: 1px solid #e5e7eb;">
-                        <h4 style="margin: 0; font-weight: 600; color: #374151;">🔍 상위 20개 중요 특성</h4>
-                    </div>
-                    <div style="overflow-x: auto; max-height: 400px;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead style="position: sticky; top: 0; background: #f9fafb; z-index: 1;">
-                                <tr style="border-bottom: 2px solid #e5e7eb;">
-                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.875rem;">순위</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #6b7280; font-size: 0.875rem;">특성</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: #6b7280; font-size: 0.875rem;">중요도</th>
-                                    <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: #6b7280; font-size: 0.875rem;">비중</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${topFeatures.map((feat, i) => {
-                                    const importance = feat.importance || 0;
-                                    const maxImportance = topFeatures[0]?.importance || 1;
-                                    const percent = (importance / maxImportance) * 100;
-                                    
-                                    return `
-                                        <tr style="border-bottom: 1px solid #f3f4f6;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
-                                            <td style="padding: 0.75rem 1rem;">
-                                                <span style="font-weight: 700; color: ${i < 3 ? '#d97706' : '#6b7280'};">
-                                                    ${i < 3 ? ['🥇', '🥈', '🥉'][i] : `#${i + 1}`}
-                                                </span>
-                                            </td>
-                                            <td style="padding: 0.75rem 1rem; font-weight: 600; color: #374151;">
-                                                ${feat.feature || 'N/A'}
-                                            </td>
-                                            <td style="padding: 0.75rem 1rem; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #111827;">
-                                                ${importance.toFixed(6)}
-                                            </td>
-                                            <td style="padding: 0.75rem 1rem;">
-                                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
-                                                    <div style="width: 100px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
-                                                        <div style="width: ${percent}%; height: 100%; background: linear-gradient(90deg, #f59e0b, #d97706); border-radius: 4px;"></div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            ` : ''}
-            
-            ${plotPath ? `
-                <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; padding: 1.25rem;">
-                    <h4 style="margin: 0 0 1rem 0; font-weight: 600; color: #374151;">📊 SHAP Summary Plot</h4>
-                    <div style="border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
-                        <img src="/${plotPath}" alt="SHAP Plot" style="width: 100%; height: auto; display: block;">
-                    </div>
-                </div>
-            ` : ''}
-        </div>
-    `;
-}
-
-// 모델 학습 결과 UI
-function createModelResultUI(stepNumber, stepName, result) {
-    console.log('Step 3 result data:', result);
-    
-    const metrics = {
-        accuracy: result.accuracy || 0,
-        precision: result.precision || 0,
-        recall: result.recall || 0,
-        f1_score: result.f1_score || 0,
-        roc_auc: result.roc_auc || 0
-    };
-    
-    return `
-        <div style="padding: 1.5rem;">
-            <!-- 헤더 -->
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-brain" style="color: white; font-size: 24px;"></i>
-                </div>
-                <div>
-                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
-                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">모델: ${result.model_id || 'N/A'}</p>
-                </div>
-            </div>
-            
-            <!-- 성능 지표 -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;">
-                ${Object.entries(metrics).map(([key, value]) => {
-                    const percent = (value * 100).toFixed(1);
-                    const color = percent >= 90 ? '#10b981' : percent >= 70 ? '#f59e0b' : '#ef4444';
-                    const bgColor = percent >= 90 ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)' : 
-                                   percent >= 70 ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : 
-                                   'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
-                    
-                    return `
-                        <div style="background: ${bgColor}; padding: 1.25rem; border-radius: 12px; border: 1px solid ${color}40;">
-                            <div style="color: #6b7280; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem; text-transform: uppercase;">
-                                ${formatLabel(key)}
-                            </div>
-                            <div style="font-size: 2rem; font-weight: 700; color: ${color};">
-                                ${percent}%
-                            </div>
-                            <div style="width: 100%; height: 4px; background: #fff; border-radius: 2px; margin-top: 0.5rem; overflow: hidden;">
-                                <div style="width: ${percent}%; height: 100%; background: ${color}; border-radius: 2px;"></div>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-            
-            <!-- 기타 정보 -->
-            <div style="margin-top: 1.5rem; padding: 1.25rem; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                    ${Object.entries(result).filter(([key]) => !['accuracy', 'precision', 'recall', 'f1_score', 'roc_auc', 'message', 'model_id'].includes(key)).map(([key, value]) => `
-                        <div>
-                            <div style="color: #6b7280; font-size: 0.813rem; font-weight: 500; margin-bottom: 0.25rem;">
-                                ${formatLabel(key)}
-                            </div>
-                            <div style="color: #111827; font-weight: 600;">
-                                ${formatValue(key, value)}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// 라벨 포맷
-function formatLabel(key) {
-    const labels = {
-        'protein_name': '단백질',
-        'total_compounds': '총 화합물',
-        'active_compounds': '활성 화합물',
-        'inactive_compounds': '비활성 화합물',
-        'fingerprint_size': 'Fingerprint 크기',
-        'descriptor_count': 'Descriptor 수',
-        'feature_count': '총 특성 수',
-        'model_id': '모델 ID',
-        'accuracy': '정확도',
-        'precision': '정밀도',
-        'recall': '재현율',
-        'f1_score': 'F1 Score',
-        'roc_auc': 'ROC AUC',
-        'count': '예측 수',
-        'active_count': '활성 예측',
-        'inactive_count': '비활성 예측',
-        'top_features': '중요 특성 Top 20',
-        'shap_values_summary': 'SHAP 요약',
-        'plot_path': 'SHAP 플롯',
-        'predictions': '예측 결과',
-        'top_predictions': '상위 예측',
-        'total_count': '전체 수',
-        'threshold': '임계값'
-    };
-    return labels[key] || key;
-}
-
-// 값 포맷
-function formatValue(key, value) {
-    // SHAP top_features 배열
-    if (key === 'top_features' && Array.isArray(value)) {
-        return `
-            <div style="max-height: 300px; overflow-y: auto; margin-top: 0.5rem;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
-                    <thead>
-                        <tr style="background: var(--gray-100); border-bottom: 2px solid var(--gray-300);">
-                            <th style="padding: 0.5rem; text-align: left;">#</th>
-                            <th style="padding: 0.5rem; text-align: left;">특성</th>
-                            <th style="padding: 0.5rem; text-align: right;">중요도</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${value.map((feat, i) => `
-                            <tr style="border-bottom: 1px solid var(--gray-200);">
-                                <td style="padding: 0.5rem;">${i + 1}</td>
-                                <td style="padding: 0.5rem; font-weight: 500;">${feat.feature || 'N/A'}</td>
-                                <td style="padding: 0.5rem; text-align: right; font-family: monospace;">${(feat.importance || 0).toFixed(6)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-    
-    // SHAP summary 객체
-    if (key === 'shap_values_summary' && typeof value === 'object') {
-        return `
-            <div style="margin-top: 0.5rem;">
-                <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem; font-size: 0.875rem;">
-                    <span style="font-weight: 500;">평균 |SHAP|:</span>
-                    <span style="font-family: monospace;">${(value.mean_abs_shap || 0).toFixed(6)}</span>
-                    <span style="font-weight: 500;">최대 |SHAP|:</span>
-                    <span style="font-family: monospace;">${(value.max_abs_shap || 0).toFixed(6)}</span>
-                    <span style="font-weight: 500;">분석 샘플 수:</span>
-                    <span style="font-family: monospace;">${value.samples_analyzed || 0}</span>
-                </div>
-            </div>
-        `;
-    }
-    
-    // SHAP plot_path
-    if (key === 'plot_path' && value) {
-        return `
-            <div style="margin-top: 0.5rem;">
-                <a href="/${value}" target="_blank" style="color: var(--primary); text-decoration: underline;">
-                    <i class="fas fa-image"></i> ${value}
-                </a>
-                <div style="margin-top: 1rem; border: 1px solid var(--gray-300); border-radius: 8px; overflow: hidden;">
-                    <img src="/${value}" alt="SHAP Plot" style="width: 100%; height: auto; display: block;">
-                </div>
-            </div>
-        `;
-    }
-    
-    // Predictions 배열
-    if ((key === 'predictions' || key === 'top_predictions') && Array.isArray(value)) {
-        return `
-            <div style="max-height: 400px; overflow-y: auto; margin-top: 0.5rem;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
-                    <thead>
-                        <tr style="background: var(--gray-100); border-bottom: 2px solid var(--gray-300);">
-                            <th style="padding: 0.5rem; text-align: left;">#</th>
-                            <th style="padding: 0.5rem; text-align: left;">SMILES</th>
-                            <th style="padding: 0.5rem; text-align: center;">예측</th>
-                            <th style="padding: 0.5rem; text-align: right;">활성 확률</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${value.map((pred, i) => `
-                            <tr style="border-bottom: 1px solid var(--gray-200);">
-                                <td style="padding: 0.5rem;">${i + 1}</td>
-                                <td style="padding: 0.5rem; font-family: monospace; font-size: 0.75rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pred.smiles || 'N/A'}</td>
-                                <td style="padding: 0.5rem; text-align: center;">
-                                    <span style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; 
-                                        ${pred.prediction === 1 ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;'}">
-                                        ${pred.prediction === 1 ? '활성' : '비활성'}
-                                    </span>
-                                </td>
-                                <td style="padding: 0.5rem; text-align: right; font-family: monospace;">
-                                    ${((pred.active_probability || 0) * 100).toFixed(2)}%
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-    
-    // 기존 포맷팅
-    if (key.includes('accuracy') || key.includes('precision') || key.includes('recall') || 
-        key.includes('f1') || key.includes('roc') || key.includes('auc')) {
-        return `${(value * 100).toFixed(2)}%`;
-    }
-    
-    if (key === 'threshold' && typeof value === 'number') {
-        return value.toFixed(2);
-    }
-    
-    if (typeof value === 'number') {
-        return value.toLocaleString();
-    }
-    
-    // 객체/배열이 그대로 넘어온 경우
-    if (typeof value === 'object') {
-        return JSON.stringify(value, null, 2);
-    }
-    
-    return value;
-}
-
-// Step 2: 특성 변환
-async function executeFeatureTransform() {
-    const proteinName = document.getElementById('protein-name').value;
-    const fingerprintType = document.getElementById('fingerprint-type').value;
-    const datasetRatio = document.getElementById('dataset-ratio').value;
-    const ignore3D = document.getElementById('ignore3d').value === 'true';
-    const posThreshold = parseFloat(document.getElementById('pos-threshold').value);
-    const negThreshold = parseFloat(document.getElementById('neg-threshold').value);
-    
-    const response = await axios.post(`${API_BASE_URL}/api/features/transform`, {
-        protein_name: proteinName,
-        fingerprint_type: fingerprintType,
-        dataset_type: 'dataset',
-        dataset_ratio: datasetRatio,
-        ignore3D: ignore3D,
-        pos_threshold: posThreshold,
-        neg_threshold: negThreshold
-    });
-    
-    return response.data;
-}
-
-// Step 3: 모델 학습
-async function executeModelTraining() {
-    const proteinName = document.getElementById('protein-name').value;
-    const modelType = document.getElementById('model-type').value;
-    
-    const response = await axios.post(`${API_BASE_URL}/api/models/train`, {
-        protein_name: proteinName,
-        model_type: modelType,
-        feature_type: 'fingerprint',
-        test_size: 0.2,
-        random_state: 42
-    });
-    
-    // 학습한 모델 ID 저장
-    lastTrainedModel = response.data.model_id;
-    
-    // 모델 선택 드롭다운 업데이트
-    await loadModelList();
-    
-    // AUTO 선택 (방금 학습한 모델 사용)
-    document.getElementById('model-select').value = 'AUTO';
-    
-    return response.data;
-}
-
-// Step 4: SHAP 분석
-async function executeSHAPAnalysis() {
-    // 모델 선택
-    let modelId = document.getElementById('model-select').value;
-    
-    // AUTO이거나 Step 3에서 방금 학습한 경우
-    if (modelId === 'AUTO' || !modelId) {
-        if (lastTrainedModel) {
-            modelId = lastTrainedModel;
-        } else {
-            throw new Error('사용할 모델이 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택하세요.');
-        }
-    }
-    
-    const response = await axios.post(`${API_BASE_URL}/api/shap/analyze`, {
-        model_id: modelId,
-        feature_type: 'fingerprint',
-        top_n: 20
-    });
-    
-    return response.data;
-}
-
-// Step 5: SMILES 직접 입력 예측
-async function executeSMILESPrediction() {
-    const smilesInput = document.getElementById('smiles-input').value.trim();
-    const smilesList = smilesInput.split('\n').map(s => s.trim()).filter(s => s);
-    
-    // 모델 선택
-    let modelId = document.getElementById('model-select').value;
-    
-    // AUTO이거나 Step 3에서 방금 학습한 경우
-    if (modelId === 'AUTO' || !modelId) {
-        if (lastTrainedModel) {
-            modelId = lastTrainedModel;
-        } else {
-            throw new Error('사용할 모델이 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택하세요.');
-        }
-    }
-    
-    const response = await axios.post(`${API_BASE_URL}/api/foodb/predict-smiles`, {
-        smiles_list: smilesList,
-        model_id: modelId
-    });
-    
-    return {
-        message: `${response.data.predictions.length}개 화합물 예측 완료`,
-        model_id: modelId,
-        count: response.data.predictions.length,
-        active_count: response.data.predictions.filter(p => p.prediction === 1).length,
-        inactive_count: response.data.predictions.filter(p => p.prediction === 0).length,
-        predictions: response.data.predictions.slice(0, 10) // 상위 10개만 표시
-    };
-}
-
-// Step 6: FooDB 전체 예측
-async function executeFooDBPrediction() {
-    // 모델 선택
-    let modelId = document.getElementById('model-select').value;
-    
-    // AUTO이거나 모델이 없는 경우
-    if (modelId === 'AUTO' || !modelId || modelId === '') {
-        // 1. Step 3에서 방금 학습한 모델 사용
-        if (lastTrainedModel) {
-            modelId = lastTrainedModel;
-            console.log('Using last trained model:', modelId);
-        } else {
-            // 2. API에서 가장 최근 모델 가져오기
-            try {
-                const modelsResponse = await axios.get(`${API_BASE_URL}/api/models/list`);
-                const models = modelsResponse.data.models || [];
-                
-                if (models.length === 0) {
-                    throw new Error('사용 가능한 모델이 없습니다. Step 3을 먼저 실행해주세요.');
-                }
-                
-                // 가장 최근 모델 사용 (첫 번째 모델)
-                const firstModel = models[0];
-                modelId = typeof firstModel === 'string' ? firstModel : firstModel.model_id;
-                console.log('Using latest available model:', modelId);
-            } catch (error) {
-                throw new Error('모델을 찾을 수 없습니다. Step 3을 먼저 실행하거나 기존 모델을 선택해주세요.');
-            }
-        }
-    }
-    
-    console.log('Final model_id for FooDB prediction:', modelId);
-    
-    const foodbMode = document.getElementById('foodb-mode').value;
-    const topN = parseInt(document.getElementById('foodb-top-n').value) || 100;
-    const threshold = parseFloat(document.getElementById('foodb-threshold').value) || 0.5;
-    
-    // FooDB CSV가 업로드되어 있는지 확인
-    // API는 query parameters를 사용함
-    
-    const response = await axios.post(`${API_BASE_URL}/api/foodb/predict`, null, {
-        params: {
-            model_id: modelId,
-            foodb_file: 'saved_data/FooDB/Compound.csv',  // FooDB 공식 파일명
-            batch_size: 100,
-            top_n: foodbMode === 'top' ? topN : 10000  // 전체 모드는 큰 값
-        }
-    });
-    
-    console.log('FooDB API response:', response.data);
-    
-    // 백엔드는 top_active_compounds를 리턴함
-    const predictions = response.data.top_active_compounds || [];
-    console.log('Total predictions received:', predictions.length);
-    
-    // threshold로 필터링
-    const activePredictions = predictions.filter(p => {
-        const prob = p.probability_active || p.active_probability || 0;
-        return prob >= threshold;
-    });
-    
-    console.log('After threshold filtering:', activePredictions.length);
-    
-    // SMILES 예측 형식으로 변환
-    const formattedPredictions = activePredictions.map(p => ({
-        smiles: p.smiles,
-        prediction: p.prediction,
-        active_probability: p.probability_active || p.active_probability
-    }));
-    
-    // 백엔드 응답에서 전체 통계 가져오기
-    const totalCompounds = response.data.total_compounds || predictions.length;
-    const activeCount = response.data.active_compounds || 0;
-    const inactiveCount = response.data.inactive_compounds || 0;
-    
-    console.log('Statistics:', {
-        total: totalCompounds,
-        active: activeCount,
-        inactive: inactiveCount,
-        filtered: activePredictions.length
-    });
-    
-    return {
-        message: `FooDB 예측 완료 (전체: ${totalCompounds}개, 임계값 ${threshold} 이상: ${activePredictions.length}개)`,
-        model_id: modelId,
-        total_count: totalCompounds,
-        active_count: activeCount,
-        inactive_count: inactiveCount,
-        threshold: threshold,
-        filtered_count: activePredictions.length,
-        top_predictions: formattedPredictions.slice(0, 20) // 상위 20개만 표시
-    };
-}
-
-// Step 7: DUD-E Decoy 생성
-async function executeDecoyGeneration() {
-    const proteinName = document.getElementById('protein-name').value;
-    
-    if (!proteinName || proteinName === 'none') {
-        throw new Error('단백질을 먼저 선택해주세요 (Step 1 실행 필요)');
-    }
-    
-    const decoyRatio = parseFloat(document.getElementById('decoy-ratio').value) || 50.0;
-    const posThreshold = parseFloat(document.getElementById('decoy-pos-threshold').value) || 10000;
-    const negThreshold = parseFloat(document.getElementById('decoy-neg-threshold').value) || 20000;
-    
-    const requestData = {
-        protein_name: proteinName,
-        decoy_ratio: decoyRatio,
-        pos_threshold: posThreshold,
-        neg_threshold: negThreshold
-    };
-    
-    console.log('Decoy generation request:', requestData);
-    
-    // Decoy 생성은 오래 걸릴 수 있으므로 타임아웃 연장 (10분)
-    const response = await axios.post(`${API_BASE_URL}/api/decoy/generate`, requestData, {
-        timeout: 600000  // 10분
-    });
-    
-    console.log('Decoy generation response:', response.data);
-    
-    return {
-        message: response.data.message,
-        protein_name: response.data.protein_name,
-        num_actives: response.data.num_actives,
-        num_inactives_real: response.data.num_inactives_real,
-        num_decoys_generated: response.data.num_decoys_generated,
-        total_compounds: response.data.total_compounds,
-        final_ratio: response.data.final_ratio,
-        output_path: response.data.output_path
-    };
-}
-
-// 모델 목록 로드
-async function loadModelList() {
-    try {
-        const response = await axios.get(`${API_BASE_URL}/api/models/list`);
-        const models = response.data.models || [];
-        
-        const select = document.getElementById('model-select');
-        
-        // 기본 옵션: AUTO (방금 학습한 모델)
-        let options = '<option value="AUTO">자동 (방금 학습한 모델 사용)</option>';
-        
-        if (models.length > 0) {
-            options += '<option value="" disabled>--- 또는 기존 모델 선택 ---</option>';
-            // 모델이 객체인 경우 model_id 추출
-            options += models.map(m => {
-                const modelId = typeof m === 'string' ? m : m.model_id;
-                const modelType = typeof m === 'object' && m.model_type ? ` (${m.model_type})` : '';
-                const accuracy = typeof m === 'object' && m.metrics?.accuracy ? ` - ${(m.metrics.accuracy * 100).toFixed(1)}%` : '';
-                return `<option value="${modelId}">${modelId}${modelType}${accuracy}</option>`;
-            }).join('');
-        }
-        
-        select.innerHTML = options;
-        
-        // 방금 학습한 모델이 있으면 하이라이트
-        if (lastTrainedModel) {
-            const modelOption = Array.from(select.options).find(opt => opt.value === lastTrainedModel);
-            if (modelOption) {
-                modelOption.text = `${modelOption.text} ✅ (방금 학습됨)`;
-            }
-        }
-        
-    } catch (error) {
-        console.error('Failed to load models:', error);
-    }
-}
-
-// 페이지 로드 시 초기화
-document.addEventListener('DOMContentLoaded', function() {
-    loadModelList();
-    
-    // 체크박스 변경 시 카드 스타일 업데이트
-    document.querySelectorAll('.step-checkbox').forEach((checkbox, index) => {
-        checkbox.addEventListener('change', function() {
-            const stepNum = index + 1;
-            updateStepCard(stepNum);
-            updateStepConfig(stepNum);
-            
-            // 상태 초기화
-            const stepId = this.id;
-            const statusElement = document.getElementById(`status${stepNum}`);
-            statusElement.className = 'step-status pending';
-            statusElement.innerHTML = '<i class="fas fa-circle"></i><span>대기중</span>';
-        });
-    });
-    
-    // FooDB 모드 변경 시 상위 N개 옵션 표시/숨김
-    const foodbModeSelect = document.getElementById('foodb-mode');
-    if (foodbModeSelect) {
-        foodbModeSelect.addEventListener('change', function() {
-            const topNGroup = document.getElementById('step7-config-top');
-            if (topNGroup) {
-                topNGroup.style.display = this.value === 'top' ? 'block' : 'none';
-            }
-        });
-    }
+/* ──────────────────────────────────────────────────────────────
+   BOOT
+────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initNav();
+  initModelCards();
+  initDragDrop();
+  checkHealth();
+  setInterval(checkHealth, 30_000);
 });
 
-// Step 7: DUD-E Decoy 생성 결과 UI
-function createDecoyGenerationResultUI(stepNumber, stepName, result) {
-    const proteinName = result.protein_name || 'N/A';
-    const numActives = result.num_actives || 0;
-    const numInactivesReal = result.num_inactives_real || 0;
-    const numDecoys = result.num_decoys_generated || 0;
-    const totalCompounds = result.total_compounds || 0;
-    const finalRatio = result.final_ratio || 'N/A';
-    
-    const decoyPercent = totalCompounds > 0 ? ((numDecoys / totalCompounds) * 100).toFixed(1) : 0;
-    const realInactivePercent = totalCompounds > 0 ? ((numInactivesReal / totalCompounds) * 100).toFixed(1) : 0;
-    const activePercent = totalCompounds > 0 ? ((numActives / totalCompounds) * 100).toFixed(1) : 0;
-    
-    return `
-        <div style="padding: 1.5rem;">
-            <!-- 헤더 -->
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-balance-scale" style="color: white; font-size: 24px;"></i>
-                </div>
-                <div>
-                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827;">${stepNumber}. ${stepName}</h3>
-                    <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">단백질: ${proteinName} | 최종 비율: ${finalRatio}</p>
-                </div>
-            </div>
-            
-            <!-- 통계 카드 -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <!-- 활성 화합물 -->
-                <div style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #86efac;">
-                    <div style="color: #166534; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">활성 화합물</div>
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span style="font-size: 2rem; font-weight: 700; color: #15803d;">${numActives.toLocaleString()}</span>
-                        <span style="font-size: 1rem; color: #166534;">(${activePercent}%)</span>
-                    </div>
-                </div>
-                
-                <!-- 비활성 (실제) -->
-                <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #93c5fd;">
-                    <div style="color: #1e40af; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">비활성 (실제 DB)</div>
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span style="font-size: 2rem; font-weight: 700; color: #1d4ed8;">${numInactivesReal.toLocaleString()}</span>
-                        <span style="font-size: 1rem; color: #1e40af;">(${realInactivePercent}%)</span>
-                    </div>
-                </div>
-                
-                <!-- Decoy 생성 -->
-                <div style="background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #fb923c;">
-                    <div style="color: #92400e; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">생성된 Decoy</div>
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem;">
-                        <span style="font-size: 2rem; font-weight: 700; color: #c2410c;">${numDecoys.toLocaleString()}</span>
-                        <span style="font-size: 1rem; color: #92400e;">(${decoyPercent}%)</span>
-                    </div>
-                </div>
-                
-                <!-- 총 화합물 -->
-                <div style="background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); padding: 1.25rem; border-radius: 12px; border: 1px solid #d8b4fe;">
-                    <div style="color: #6b21a8; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">총 화합물</div>
-                    <div style="font-size: 2rem; font-weight: 700; color: #7c3aed;">${totalCompounds.toLocaleString()}</div>
-                </div>
-            </div>
-            
-            <!-- DUD-E 방식 설명 -->
-            <div style="background: white; border-radius: 12px; border: 1px solid #e5e7eb; padding: 1.25rem; margin-bottom: 1rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                    <i class="fas fa-info-circle" style="color: #6b7280;"></i>
-                    <h4 style="margin: 0; font-weight: 600; color: #374151;">DUD-E 방식 Decoy 생성</h4>
-                </div>
-                <div style="color: #6b7280; font-size: 0.875rem; line-height: 1.6;">
-                    <p style="margin: 0 0 0.5rem 0;">✅ <strong>실제 데이터 우선 사용:</strong> ChEMBL/BindingDB에서 수집한 활성/비활성 화합물을 먼저 사용</p>
-                    <p style="margin: 0 0 0.5rem 0;">🔬 <strong>Decoy 보충:</strong> 비활성 화합물이 부족한 경우, 활성 화합물과 유사한 물리화학적 특성을 가진 decoy 생성</p>
-                    <p style="margin: 0;">📊 <strong>DUD-E 기준:</strong> 분자량, LogP, 회전 가능한 결합, 수소결합 donor/acceptor 등을 매칭하되 위상 구조는 다르게 생성</p>
-                </div>
-            </div>
-            
-            <!-- 출력 파일 -->
-            ${result.output_path ? `
-                <div style="padding: 1rem; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #6b7280; font-size: 0.875rem;">
-                        <i class="fas fa-file-csv"></i>
-                        <span>출력 파일: <strong style="color: #111827;">${result.output_path}</strong></span>
-                    </div>
-                </div>
-            ` : ''}
+/* ──────────────────────────────────────────────────────────────
+   NAVIGATION
+────────────────────────────────────────────────────────────── */
+function initNav() {
+  document.querySelectorAll('.sb-item[data-page]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      navigateTo(el.dataset.page);
+    });
+  });
+
+  document.getElementById('burger')?.addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+
+  // close sidebar on outside click (mobile)
+  document.addEventListener('click', e => {
+    const sb = document.getElementById('sidebar');
+    if (sb?.classList.contains('open') &&
+        !sb.contains(e.target) &&
+        !e.target.closest('#burger')) {
+      sb.classList.remove('open');
+    }
+  });
+}
+
+function navigateTo(page) {
+  // pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-' + page);
+  if (target) target.classList.add('active');
+
+  // sidebar items
+  document.querySelectorAll('.sb-item[data-page]').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+
+  // topbar
+  const meta = PAGE_META[page] || ['--', page];
+  const stepEl  = document.getElementById('tb-step-num');
+  const titleEl = document.getElementById('tb-title');
+  if (stepEl)  stepEl.textContent  = meta[0];
+  if (titleEl) titleEl.textContent = meta[1];
+
+  // close sidebar on mobile
+  document.getElementById('sidebar')?.classList.remove('open');
+
+  // lazy-load data on page enter
+  if (page === 'results') loadCompareModels();
+  if (page === 'shap')    loadShapModels();
+  if (page === 'predict') loadPredictModels();
+}
+
+/* ──────────────────────────────────────────────────────────────
+   HEALTH CHECK
+────────────────────────────────────────────────────────────── */
+async function checkHealth() {
+  const dot   = document.getElementById('sys-dot');
+  const label = document.getElementById('sys-label');
+  try {
+    const { data } = await axios.get(`${API}/health`);
+    dot.className = 'sys-dot ok';
+    if (label) label.textContent = '시스템 정상';
+    setEl('st-ds',  data.data?.collected_datasets ?? 0);
+    setEl('st-mdl', data.data?.trained_models     ?? 0);
+  } catch {
+    dot.className = 'sys-dot err';
+    if (label) label.textContent = '연결 오류';
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   ████  PAGE 1 — 데이터 준비
+────────────────────────────────────────────────────────────── */
+
+/* ── A: 데이터 수집 ── */
+async function runCollect() {
+  const raw     = getVal('inp-proteins').trim();
+  const stdtype = getVal('inp-stdtype');
+  if (!raw) { toast('타겟 단백질 이름을 입력하세요', 'warn'); return; }
+
+  const btn = byId('btn-collect');
+  setBtnLoading(btn, '수집 중…');
+  setStatus('st-collect', 'running', '수집 중');
+
+  const res = byId('res-collect');
+  showBox(res, 'info', '<i class="fas fa-spinner fa-spin"></i> ChEMBL + BindingDB 에서 데이터를 가져오는 중입니다…');
+
+  try {
+    const targets = raw.split(',').map(s => s.trim()).filter(Boolean);
+    const { data } = await axios.post(`${API}/api/data/collect`, {
+      target_list:   targets,
+      standard_type: stdtype,
+    });
+
+    collectedProteins = targets;
+    populateProteinDropdowns(targets);
+
+    showBox(res, 'ok',
+      `<strong><i class="fas fa-check-circle"></i> 수집 완료</strong><br>
+       단백질: <em>${targets.join(', ')}</em><br>
+       총 화합물: <strong>${fmt(data.total_compounds)}</strong>개
+       &nbsp;<span class="muted">(ChEMBL: ${fmt(data.chembl_count)} / BindingDB: ${fmt(data.bindingdb_count)})</span>`
+    );
+    setStatus('st-collect', 'done', '완료');
+    checkHealth();
+    toast('데이터 수집 완료!', 'ok');
+
+  } catch (err) {
+    showBox(res, 'err', '수집 실패: ' + extractErr(err));
+    setStatus('st-collect', 'err', '실패');
+    toast('수집 실패', 'err');
+  } finally {
+    setBtnReady(btn, '<i class="fas fa-cloud-download-alt"></i> 수집 시작');
+  }
+}
+
+/* ── B: Decoy 생성 ── */
+async function runDecoy() {
+  const protein = getVal('inp-decoy-protein');
+  if (!protein) { toast('단백질을 선택하세요 (A 단계 수집 필요)', 'warn'); return; }
+
+  const btn = byId('btn-decoy');
+  setBtnLoading(btn, 'Decoy 생성 중…');
+  setStatus('st-decoy', 'running', '생성 중');
+
+  const res = byId('res-decoy');
+  showBox(res, 'info', '<i class="fas fa-spinner fa-spin"></i> DUD-E 방식으로 Decoy 화합물을 생성하는 중입니다…');
+
+  try {
+    const { data } = await axios.post(`${API}/api/decoy/generate`, {
+      protein_name:  protein,
+      decoy_ratio:   parseFloat(getVal('inp-decoy-ratio')),
+      pos_threshold: parseFloat(getVal('inp-pos-thr')),
+      neg_threshold: parseFloat(getVal('inp-neg-thr')),
+    });
+
+    showBox(res, 'ok',
+      `<strong><i class="fas fa-check-circle"></i> Decoy 생성 완료</strong><br>
+       <div class="mini-stat-row">
+         ${mStat(data.num_actives, '활성', '#10b981')}
+         ${mStat(data.num_inactives_real, '실 비활성', '#6366f1')}
+         ${mStat(data.num_decoys_generated, 'Decoy', '#f59e0b')}
+         ${mStat(data.total_compounds, '합계', '#0ea5e9')}
+       </div>
+       <span class="muted">최종 비율: ${data.final_ratio ?? '–'}</span>`
+    );
+    setStatus('st-decoy', 'done', '완료');
+    toast('Decoy 생성 완료!', 'ok');
+
+  } catch (err) {
+    showBox(res, 'err', 'Decoy 생성 실패: ' + extractErr(err));
+    setStatus('st-decoy', 'err', '실패');
+    toast('Decoy 생성 실패', 'err');
+  } finally {
+    setBtnReady(btn, '<i class="fas fa-balance-scale"></i> Decoy 생성');
+  }
+}
+
+/* ── C: 특성 변환 ── */
+async function runTransform() {
+  const protein = getVal('inp-trans-protein');
+  if (!protein) { toast('단백질을 선택하세요 (A 단계 수집 필요)', 'warn'); return; }
+
+  const btn = byId('btn-transform');
+  setBtnLoading(btn, '변환 중…');
+  setStatus('st-transform', 'running', '변환 중');
+
+  const res = byId('res-transform');
+  showBox(res, 'info', '<i class="fas fa-spinner fa-spin"></i> SMILES → Fingerprint + Descriptor 변환 중입니다… (수 분 소요될 수 있음)');
+
+  try {
+    const { data } = await axios.post(`${API}/api/features/transform`, {
+      protein_name:     protein,
+      fingerprint_type: getVal('inp-fptype'),
+      dataset_type:     'dataset',
+      dataset_ratio:    getVal('inp-dsr'),
+      ignore3D:         getVal('inp-3d') === 'true',
+    });
+
+    const fpSize  = data.fingerprint_size  ?? '–';
+    const descCnt = data.descriptor_count  ?? '–';
+    const total   = data.feature_count     ?? (fpSize !== '–' && descCnt !== '–' ? fpSize + descCnt : '–');
+
+    showBox(res, 'ok',
+      `<strong><i class="fas fa-check-circle"></i> 특성 변환 완료</strong><br>
+       <div class="mini-stat-row">
+         ${mStat(fpSize,             'Fingerprint',   '#8b5cf6')}
+         ${mStat(descCnt,            'Descriptor',    '#06b6d4')}
+         ${mStat(total,              '총 특성',       '#0ea5e9')}
+         ${mStat(data.total_compounds ?? '–', '화합물', '#10b981')}
+       </div>
+       <span class="muted">타입: ${data.fingerprint_type ?? getVal('inp-fptype')} · ${getVal('inp-3d')==='true'?'2D만':'2D+3D'} · ${getVal('inp-dsr')}</span>`
+    );
+    setStatus('st-transform', 'done', '완료');
+    checkHealth();
+    toast('특성 변환 완료!', 'ok');
+
+  } catch (err) {
+    showBox(res, 'err', '특성 변환 실패: ' + extractErr(err));
+    setStatus('st-transform', 'err', '실패');
+    toast('특성 변환 실패', 'err');
+  } finally {
+    setBtnReady(btn, '<i class="fas fa-cogs"></i> 변환 실행');
+  }
+}
+
+/* populate all protein <select> elements across pages */
+function populateProteinDropdowns(proteins) {
+  const opts = proteins.map(p => `<option value="${p}">${p}</option>`).join('');
+  ['inp-decoy-protein', 'inp-trans-protein', 'inp-train-protein', 'inp-shap-protein-filter'].forEach(id => {
+    const el = byId(id);
+    if (!el) return;
+    el.disabled = false;
+    el.innerHTML = opts;
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   ████  PAGE 2 — 모델 학습
+────────────────────────────────────────────────────────────── */
+
+function initModelCards() {
+  document.querySelectorAll('.model-card').forEach(card => {
+    const cb = card.querySelector('input[type=checkbox]');
+    if (!cb) return;
+    // reflect initial checked state
+    if (cb.checked) card.classList.add('checked');
+    card.addEventListener('click', e => {
+      // let the native checkbox toggle first
+      setTimeout(() => {
+        card.classList.toggle('checked', cb.checked);
+      }, 0);
+    });
+  });
+}
+
+async function runTrainAll() {
+  const protein  = getVal('inp-train-protein');
+  const testSize = parseFloat(getVal('inp-test-size'))  || 0.2;
+  const seed     = parseInt(getVal('inp-seed'))         || 42;
+
+  if (!protein) { toast('단백질을 선택하세요 (데이터 준비 페이지에서 수집 필요)', 'warn'); return; }
+
+  // gather checked models
+  const checked = [...document.querySelectorAll('.model-card input[type=checkbox]:checked')]
+    .map(cb => cb.value);
+
+  if (!checked.length) { toast('학습할 모델을 하나 이상 선택하세요', 'warn'); return; }
+
+  // show progress card
+  const progCard = byId('train-progress-card');
+  const logEl    = byId('train-log');
+  const spinEl   = byId('train-spin');
+  progCard?.classList.remove('hidden');
+  if (logEl) logEl.innerHTML = '';
+
+  const btn = byId('btn-train');
+  setBtnLoading(btn, '학습 중…');
+
+  lastTrainResults = [];
+
+  for (const modelType of checked) {
+    const logItem = appendLogItem(logEl, modelType, 'running');
+
+    try {
+      const { data } = await axios.post(`${API}/api/models/train`, {
+        protein_name: protein,
+        model_type:   modelType,
+        feature_type: 'fingerprint',
+        test_size:    testSize,
+        random_state: seed,
+      });
+
+      // store result
+      lastTrainResults.push({
+        model_id:    data.model_id,
+        model_type:  modelType,
+        protein:     protein,
+        accuracy:    data.accuracy,
+        precision:   data.precision,
+        recall:      data.recall,
+        f1_score:    data.f1_score,
+        roc_auc:     data.roc_auc,
+      });
+
+      updateLogItem(logItem, 'done',
+        `AUC ${pct(data.roc_auc)} · F1 ${pct(data.f1_score)} · Acc ${pct(data.accuracy)}`
+      );
+      toast(`${modelType} 학습 완료 (AUC ${pct(data.roc_auc)})`, 'ok');
+
+    } catch (err) {
+      updateLogItem(logItem, 'err', extractErr(err));
+      toast(`${modelType} 학습 실패`, 'err');
+    }
+  }
+
+  // finish
+  if (spinEl) spinEl.className = 'fas fa-check-circle';
+  setBtnReady(btn, '<i class="fas fa-play-circle"></i><span>선택 모델 학습 시작</span>');
+
+  checkHealth();
+  populateShapModels();
+  populatePredModels();
+
+  if (lastTrainResults.length) {
+    toast('모든 학습 완료! 결과 비교 페이지를 확인하세요.', 'ok');
+  }
+}
+
+function appendLogItem(container, name, state) {
+  const el = document.createElement('div');
+  el.className = `log-item ${state}`;
+  el.innerHTML = `
+    <span class="log-icon"><i class="fas fa-spinner fa-spin"></i></span>
+    <span class="log-name">${name}</span>
+    <span class="log-detail">학습 중…</span>`;
+  container?.appendChild(el);
+  container?.scrollTo(0, container.scrollHeight);
+  return el;
+}
+
+function updateLogItem(el, state, detail) {
+  el.className = `log-item ${state}`;
+  const iconMap = { done: 'fa-check-circle', err: 'fa-times-circle', running: 'fa-spinner fa-spin' };
+  el.querySelector('.log-icon').innerHTML = `<i class="fas ${iconMap[state] || 'fa-circle'}"></i>`;
+  el.querySelector('.log-detail').textContent = detail;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   ████  PAGE 3 — 결과 비교
+────────────────────────────────────────────────────────────── */
+
+async function loadCompareModels() {
+  const listEl = byId('compare-model-list');
+  if (listEl) listEl.innerHTML = '<span class="muted"><i class="fas fa-spinner fa-spin"></i> 불러오는 중…</span>';
+
+  try {
+    const { data } = await axios.get(`${API}/api/models/list`);
+    const models = data.models ?? [];
+
+    if (!models.length) {
+      if (listEl) listEl.innerHTML = '<span class="muted">저장된 모델이 없습니다. 모델 학습 페이지에서 먼저 학습하세요.</span>';
+      clearCompareCharts();
+      return;
+    }
+
+    // render checkboxes
+    if (listEl) {
+      listEl.innerHTML = models.map(m =>
+        `<label class="cmp-check">
+           <input type="checkbox" value="${m.model_id}" checked onchange="renderCompareCharts()"/>
+           <span>${m.model_type ?? m.model_id}</span>
+           <span class="cmp-protein">${m.protein_name ?? ''}</span>
+         </label>`
+      ).join('');
+    }
+
+    // merge with in-memory lastTrainResults
+    models.forEach(m => {
+      if (!lastTrainResults.find(r => r.model_id === m.model_id)) {
+        lastTrainResults.push({
+          model_id:   m.model_id,
+          model_type: m.model_type,
+          protein:    m.protein_name,
+          accuracy:   m.metrics?.accuracy,
+          precision:  m.metrics?.precision,
+          recall:     m.metrics?.recall,
+          f1_score:   m.metrics?.f1_score,
+          roc_auc:    m.metrics?.roc_auc,
+          train_size: m.train_size,
+          test_size:  m.test_size,
+        });
+      }
+    });
+
+    renderCompareCharts();
+
+  } catch (err) {
+    if (listEl) listEl.innerHTML = `<span class="err-text">불러오기 실패: ${extractErr(err)}</span>`;
+  }
+}
+
+function getSelectedModelIds() {
+  return [...document.querySelectorAll('#compare-model-list input[type=checkbox]:checked')]
+    .map(cb => cb.value);
+}
+
+function renderCompareCharts() {
+  const selectedIds = getSelectedModelIds();
+  const rows = lastTrainResults.filter(r => selectedIds.includes(r.model_id));
+
+  if (!rows.length) { clearCompareCharts(); return; }
+
+  const labels = rows.map(r => r.model_type || r.model_id.split('_')[1] || r.model_id);
+
+  // ── AUC chart ──
+  const aucCtx = byId('chart-auc')?.getContext('2d');
+  if (aucCtx) {
+    aucChart?.destroy();
+    aucChart = new Chart(aucCtx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'ROC-AUC',
+          data: rows.map(r => r.roc_auc ?? 0),
+          backgroundColor: rows.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + 'cc'),
+          borderColor:     rows.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+          borderWidth: 2,
+          borderRadius: 6,
+        }],
+      },
+      options: chartOpts('ROC-AUC', 0, 1),
+    });
+  }
+
+  // ── F1 / Precision / Recall chart ──
+  const metCtx = byId('chart-metrics')?.getContext('2d');
+  if (metCtx) {
+    metricsChart?.destroy();
+    metricsChart = new Chart(metCtx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'F1',        data: rows.map(r => r.f1_score  ?? 0), backgroundColor: '#8b5cf6cc', borderColor: '#8b5cf6', borderWidth: 2, borderRadius: 6 },
+          { label: 'Precision', data: rows.map(r => r.precision ?? 0), backgroundColor: '#0ea5e9cc', borderColor: '#0ea5e9', borderWidth: 2, borderRadius: 6 },
+          { label: 'Recall',    data: rows.map(r => r.recall    ?? 0), backgroundColor: '#10b981cc', borderColor: '#10b981', borderWidth: 2, borderRadius: 6 },
+        ],
+      },
+      options: chartOpts('Metrics', 0, 1),
+    });
+  }
+
+  // ── table ──
+  const tbody = byId('metrics-tbody');
+  if (tbody) {
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td style="font-size:.78rem;font-family:monospace">${r.model_id}</td>
+        <td>${r.model_type ?? '–'}</td>
+        <td>${r.protein ?? '–'}</td>
+        <td>${fmtPct(r.accuracy)}</td>
+        <td>${fmtPct(r.precision)}</td>
+        <td>${fmtPct(r.recall)}</td>
+        <td><strong>${fmtPct(r.f1_score)}</strong></td>
+        <td><strong style="color:var(--p3)">${fmtPct(r.roc_auc)}</strong></td>
+        <td>${fmt(r.train_size)}</td>
+        <td>${fmt(r.test_size)}</td>
+      </tr>`).join('');
+  }
+}
+
+function clearCompareCharts() {
+  aucChart?.destroy(); aucChart = null;
+  metricsChart?.destroy(); metricsChart = null;
+  const tbody = byId('metrics-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="empty-cell">모델을 불러오세요</td></tr>';
+}
+
+/* ──────────────────────────────────────────────────────────────
+   ████  PAGE 4 — SHAP 분석
+────────────────────────────────────────────────────────────── */
+
+async function loadShapModels() {
+  populateShapModels();
+}
+
+async function populateShapModels() {
+  const sel = byId('inp-shap-model');
+  if (!sel) return;
+
+  try {
+    const { data } = await axios.get(`${API}/api/models/list`);
+    const models = data.models ?? [];
+    sel.innerHTML = models.length
+      ? models.map(m => `<option value="${m.model_id}">${m.model_type ?? m.model_id} — ${m.protein_name ?? ''}</option>`).join('')
+      : '<option value="">학습된 모델 없음</option>';
+  } catch {
+    sel.innerHTML = '<option value="">모델 목록 로드 실패</option>';
+  }
+}
+
+async function runShap() {
+  const modelId = getVal('inp-shap-model');
+  const topN    = parseInt(getVal('inp-shap-n')) || 20;
+
+  if (!modelId) { toast('분석할 모델을 선택하세요', 'warn'); return; }
+
+  const btn = byId('btn-shap');
+  setBtnLoading(btn, 'SHAP 분석 중…');
+
+  const statusEl = byId('res-shap-status');
+  showBox(statusEl, 'info', '<i class="fas fa-spinner fa-spin"></i> SHAP 분석 실행 중… (모델 크기에 따라 수 분 소요)');
+
+  byId('shap-result-card')?.classList.add('hidden');
+
+  try {
+    const { data } = await axios.post(`${API}/api/shap/analyze`, {
+      model_id:     modelId,
+      feature_type: 'fingerprint',
+      top_n:        topN,
+    });
+
+    showBox(statusEl, 'ok', `<i class="fas fa-check-circle"></i> SHAP 분석 완료 (샘플 ${data.shap_values_summary?.samples_analyzed ?? '?'}개 분석)`);
+
+    // label
+    const labelEl = byId('shap-model-label');
+    if (labelEl) labelEl.textContent = `모델: ${modelId}`;
+
+    renderShapChart(data.top_features, topN);
+    renderShapTable(data.top_features);
+    byId('shap-result-card')?.classList.remove('hidden');
+    toast('SHAP 분석 완료!', 'ok');
+
+  } catch (err) {
+    showBox(statusEl, 'err', 'SHAP 분석 실패: ' + extractErr(err));
+    toast('SHAP 분석 실패', 'err');
+  } finally {
+    setBtnReady(btn, '<i class="fas fa-microscope"></i> SHAP 분석 실행');
+  }
+}
+
+function renderShapChart(features, topN) {
+  const ctx = byId('chart-shap')?.getContext('2d');
+  if (!ctx || !features?.length) return;
+
+  const top = features.slice(0, Math.min(topN, 20));
+  const labels = top.map(f => {
+    const name = f.feature ?? f.name ?? f.feature_name ?? `Feature_${f.feature_index ?? '?'}`;
+    return name.length > 22 ? name.slice(0, 22) + '…' : name;
+  });
+  const vals = top.map(f => parseFloat(f.importance ?? f.shap_value ?? f.mean_shap ?? 0));
+
+  shapChart?.destroy();
+  shapChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'SHAP 값 (절댓값)',
+        data: vals,
+        backgroundColor: vals.map((_, i) => `hsl(${195 + i * 8}, 80%, 55%)99`),
+        borderColor: '#06b6d4',
+        borderWidth: 1,
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x.toFixed(5)}` } },
+      },
+      scales: {
+        x: { grid: { color: '#e2e8f033' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+        y: { grid: { display: false },     ticks: { color: '#cbd5e1', font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+function renderShapTable(features) {
+  const tbody = byId('shap-tbody');
+  if (!tbody || !features?.length) return;
+
+  const maxV = Math.max(...features.map(f => Math.abs(f.importance ?? f.shap_value ?? f.mean_shap ?? 0)));
+
+  tbody.innerHTML = features.slice(0, 30).map((f, i) => {
+    const name = f.feature ?? f.name ?? f.feature_name ?? `Feature_${f.feature_index ?? i}`;
+    const val  = parseFloat(f.importance ?? f.shap_value ?? f.mean_shap ?? 0);
+    const rel  = maxV ? (Math.abs(val) / maxV * 100).toFixed(1) : '0';
+    return `<tr>
+      <td class="muted">${i + 1}</td>
+      <td style="font-size:.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name}</td>
+      <td style="font-family:monospace;font-size:.8rem">${Math.abs(val).toFixed(5)}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <div style="flex:1;height:6px;background:#1e293b;border-radius:3px">
+            <div style="width:${rel}%;height:100%;background:var(--p4);border-radius:3px"></div>
+          </div>
+          <span style="font-size:.75rem;color:#94a3b8;width:40px">${rel}%</span>
         </div>
-    `;
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ──────────────────────────────────────────────────────────────
+   ████  PAGE 5 — 예측
+────────────────────────────────────────────────────────────── */
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  byId('tab-' + tab)?.classList.add('active');
+}
+
+async function loadPredictModels() {
+  populatePredModels();
+}
+
+async function populatePredModels() {
+  const sel = byId('inp-pred-model');
+  if (!sel) return;
+
+  try {
+    const { data } = await axios.get(`${API}/api/models/list`);
+    const models = data.models ?? [];
+    sel.innerHTML = models.length
+      ? models.map(m => `<option value="${m.model_id}">${m.model_type ?? m.model_id} — ${m.protein_name ?? ''}</option>`).join('')
+      : '<option value="">새로고침 버튼을 눌러 모델을 불러오세요</option>';
+  } catch {
+    sel.innerHTML = '<option value="">모델 목록 로드 실패</option>';
+  }
+}
+
+function loadSampleSmiles() {
+  byId('inp-smiles').value =
+`CCO
+CC(=O)O
+c1ccccc1C(=O)O
+CN1C=NC2=C1C(=O)N(C(=O)N2C)C
+CC(C)Cc1ccc(cc1)C(C)C(=O)O
+OC(=O)c1ccc(cc1)N
+c1ccc2c(c1)cc1ccc3cccc4ccc2c1c34
+CC(=O)Nc1ccc(O)cc1
+OC(=O)C1CCCN1
+c1ccc(cc1)-c1ccncc1`;
+  toast('샘플 SMILES 10개 불러옴', 'info');
+}
+
+async function runSmilesPred() {
+  const modelId = getVal('inp-pred-model');
+  if (!modelId) { toast('예측에 사용할 모델을 선택하세요', 'warn'); return; }
+
+  const raw = getVal('inp-smiles').trim();
+  if (!raw)  { toast('SMILES를 입력하세요', 'warn'); return; }
+
+  const smilesList = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!smilesList.length) { toast('유효한 SMILES가 없습니다', 'warn'); return; }
+
+  const btn = byId('btn-smiles-pred');
+  setBtnLoading(btn, '예측 중…');
+  setStatus('st-smiles', 'running', '예측 중');
+  byId('pred-result-card')?.classList.add('hidden');
+
+  try {
+    const { data } = await axios.post(`${API}/api/models/predict`, {
+      smiles_list:  smilesList,
+      model_id:     modelId,
+      feature_type: 'fingerprint',
+    });
+
+    predResults = data.predictions ?? [];
+    renderPredResults(predResults, `SMILES ${smilesList.length}개 예측 완료`);
+    setStatus('st-smiles', 'done', '완료');
+    toast(`예측 완료: ${smilesList.length}개`, 'ok');
+
+  } catch (err) {
+    setStatus('st-smiles', 'err', '실패');
+    toast('예측 실패: ' + extractErr(err), 'err');
+  } finally {
+    setBtnReady(btn, '<i class="fas fa-play-circle"></i> 예측 실행');
+  }
+}
+
+/* ── FooDB CSV upload ── */
+function onCsvSelect(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const infoEl = byId('csv-info');
+  showBox(infoEl, 'info', `<i class="fas fa-spinner fa-spin"></i> "${file.name}" 읽는 중…`);
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const text  = ev.target.result;
+    const lines = text.split('\n').filter(Boolean);
+    const header = lines[0]?.split(',').map(c => c.trim().replace(/"/g, '').toLowerCase());
+
+    // detect SMILES column
+    const smilesIdx = header?.findIndex(c =>
+      ['moldb_smiles','canonical_smiles','smiles'].includes(c)
+    );
+
+    if (smilesIdx < 0) {
+      showBox(infoEl, 'err', `SMILES 컬럼을 찾을 수 없습니다.<br>사용 가능한 컬럼: <em>${header?.join(', ')}</em>`);
+      return;
+    }
+
+    foodbUploadedSmiles = lines.slice(1).map(line => {
+      const cols = line.split(',');
+      return cols[smilesIdx]?.trim().replace(/"/g, '') ?? '';
+    }).filter(Boolean);
+
+    showBox(infoEl, 'ok',
+      `<i class="fas fa-check-circle"></i> <strong>${file.name}</strong> 로드 완료<br>
+       화합물: <strong>${foodbUploadedSmiles.length.toLocaleString()}</strong>개
+       &nbsp;(SMILES 컬럼: <em>${header[smilesIdx]}</em>)`
+    );
+
+    // also upload to server for server-side prediction
+    uploadCsvToServer(file);
+  };
+  reader.readAsText(file);
+}
+
+async function uploadCsvToServer(file) {
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await axios.post(`${API}/api/foodb/upload`, form);
+    foodbUploadedPath = data.file_path;
+  } catch {
+    // non-fatal: we can still use client-side extracted SMILES
+    foodbUploadedPath = null;
+  }
+}
+
+async function runFoodbPred() {
+  const modelId = getVal('inp-pred-model');
+  if (!modelId) { toast('예측에 사용할 모델을 선택하세요', 'warn'); return; }
+
+  const topN   = parseInt(getVal('inp-topn'))   || 100;
+  const thresh = parseFloat(getVal('inp-thresh')) ?? 0.5;
+  const mode   = getVal('inp-pred-mode');
+
+  const btn = byId('btn-foodb-pred');
+
+  // prefer server-side path, fallback to client-extracted SMILES list
+  if (foodbUploadedPath) {
+    // server-side batch predict
+    setBtnLoading(btn, '예측 중…');
+    setStatus('st-foodb', 'running', '예측 중');
+    byId('pred-result-card')?.classList.add('hidden');
+
+    try {
+      const params = new URLSearchParams({ model_id: modelId, top_n: topN });
+      const { data } = await axios.post(
+        `${API}/api/foodb/predict?${params.toString()}`
+      );
+
+      predResults = data.top_active_compounds ?? [];
+      const summary = `총 ${fmt(data.total_compounds)}개 중 활성 ${fmt(data.active_compounds)}개 (임계값 ${thresh})`;
+      renderPredResults(predResults, summary, data);
+      setStatus('st-foodb', 'done', '완료');
+      toast(`FooDB 예측 완료: ${fmt(data.active_compounds)}개 활성`, 'ok');
+
+    } catch (err) {
+      setStatus('st-foodb', 'err', '실패');
+      toast('FooDB 예측 실패: ' + extractErr(err), 'err');
+    } finally {
+      setBtnReady(btn, '<i class="fas fa-play-circle"></i> FooDB 예측');
+    }
+
+  } else if (foodbUploadedSmiles.length) {
+    // client-side SMILES → /api/models/predict
+    setBtnLoading(btn, '예측 중…');
+    setStatus('st-foodb', 'running', '예측 중');
+    byId('pred-result-card')?.classList.add('hidden');
+
+    const smilesList = mode === 'top'
+      ? foodbUploadedSmiles.slice(0, topN * 5)   // sample more than needed
+      : foodbUploadedSmiles;
+
+    try {
+      const CHUNK = 200;
+      let allPreds = [];
+
+      for (let i = 0; i < smilesList.length; i += CHUNK) {
+        const chunk = smilesList.slice(i, i + CHUNK);
+        const { data } = await axios.post(`${API}/api/models/predict`, {
+          smiles_list:  chunk,
+          model_id:     modelId,
+          feature_type: 'fingerprint',
+        });
+        allPreds = allPreds.concat(data.predictions ?? []);
+      }
+
+      // sort by active probability, filter by threshold
+      allPreds.sort((a, b) => (b.probability_active ?? 0) - (a.probability_active ?? 0));
+      const active   = allPreds.filter(p => (p.probability_active ?? 0) >= thresh);
+      const topSlice = mode === 'top' ? active.slice(0, topN) : active;
+
+      predResults = topSlice;
+      const summary = `총 ${fmt(allPreds.length)}개 예측 · 활성(≥${thresh}): ${fmt(active.length)}개`;
+      renderPredResults(topSlice, summary);
+      setStatus('st-foodb', 'done', '완료');
+      toast(`FooDB 예측 완료: 활성 ${fmt(active.length)}개`, 'ok');
+
+    } catch (err) {
+      setStatus('st-foodb', 'err', '실패');
+      toast('FooDB 예측 실패: ' + extractErr(err), 'err');
+    } finally {
+      setBtnReady(btn, '<i class="fas fa-play-circle"></i> FooDB 예측');
+    }
+
+  } else {
+    toast('먼저 FooDB CSV 파일을 업로드하세요', 'warn');
+  }
+}
+
+/* render pred result card */
+function renderPredResults(rows, summary, extra) {
+  const card     = byId('pred-result-card');
+  const summaryEl = byId('pred-result-summary');
+  const statsEl  = byId('pred-stats');
+  const tbody    = byId('pred-tbody');
+
+  if (summaryEl) summaryEl.textContent = summary;
+  card?.classList.remove('hidden');
+
+  // stats boxes
+  const total   = extra?.total_compounds ?? rows.length;
+  const active  = extra?.active_compounds  ?? rows.filter(r => (r.probability_active ?? r.probability ?? 0) >= 0.5).length;
+  const inactive = total - active;
+
+  if (statsEl) {
+    statsEl.innerHTML = `
+      ${psBox(total,   '전체',   '#0ea5e9')}
+      ${psBox(active,  '활성',   '#10b981')}
+      ${psBox(inactive,'비활성', '#ef4444')}
+      ${extra ? psBox(fmtPct(extra.statistics?.mean_probability_active), '평균 활성확률', '#8b5cf6') : ''}`;
+  }
+
+  // table
+  if (tbody) {
+    tbody.innerHTML = rows.slice(0, 200).map((r, i) => {
+      const prob = r.probability_active ?? r.probability ?? 0;
+      const pred = r.prediction ?? (prob >= 0.5 ? 1 : 0);
+      const smiles = r.smiles ?? r.canonical_smiles ?? '–';
+      const name   = r.compound_name ?? '';
+      const probPct = (prob * 100).toFixed(1);
+      const barColor = prob >= 0.7 ? '#10b981' : prob >= 0.5 ? '#f59e0b' : '#ef4444';
+
+      return `<tr>
+        <td class="muted">${i + 1}</td>
+        <td style="font-size:.75rem;font-family:monospace;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${smiles}">
+          ${smiles.length > 28 ? smiles.slice(0, 28) + '…' : smiles}
+          ${name ? `<br><span style="color:#94a3b8;font-family:inherit">${name}</span>` : ''}
+        </td>
+        <td>
+          <div class="prob-bar-wrap">
+            <div style="flex:1;height:6px;background:#1e293b;border-radius:3px">
+              <div style="width:${probPct}%;height:100%;background:${barColor};border-radius:3px"></div>
+            </div>
+            <span style="font-size:.8rem;font-weight:700;color:${barColor};width:44px;text-align:right">${probPct}%</span>
+          </div>
+        </td>
+        <td>
+          <span class="pred-badge ${pred === 1 ? 'active' : 'inactive'}">${pred === 1 ? '활성' : '비활성'}</span>
+        </td>
+      </tr>`;
+    }).join('');
+
+    if (rows.length > 200) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="4" class="empty-cell">… +${rows.length - 200}개 (CSV 다운로드로 전체 확인)</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+}
+
+function downloadPredResult() {
+  if (!predResults.length) { toast('다운로드할 결과가 없습니다', 'warn'); return; }
+
+  const header = 'smiles,compound_name,probability_active,probability_inactive,prediction\n';
+  const rows = predResults.map(r =>
+    [
+      `"${r.smiles ?? r.canonical_smiles ?? ''}"`,
+      `"${r.compound_name ?? ''}"`,
+      (r.probability_active  ?? '').toString(),
+      (r.probability_inactive ?? '').toString(),
+      (r.prediction ?? '').toString(),
+    ].join(',')
+  );
+  const csv  = header + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `pci_predictions_${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV 다운로드 시작!', 'ok');
+}
+
+/* ──────────────────────────────────────────────────────────────
+   DRAG-AND-DROP for FooDB upload zone
+────────────────────────────────────────────────────────────── */
+function initDragDrop() {
+  const zone = byId('upload-zone');
+  if (!zone) return;
+
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.name.endsWith('.csv')) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const inp = byId('inp-csv');
+      if (inp) {
+        inp.files = dt.files;
+        onCsvSelect({ target: { files: [file] } });
+      }
+    } else {
+      toast('CSV 파일만 업로드 가능합니다', 'warn');
+    }
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   TOAST
+────────────────────────────────────────────────────────────── */
+function toast(msg, type = 'info') {
+  const stack = byId('toast-stack');
+  if (!stack) return;
+  const el = document.createElement('div');
+  const iconMap = { ok:'fa-check-circle', err:'fa-times-circle', warn:'fa-exclamation-triangle', info:'fa-info-circle' };
+  el.className = `toast ${type}`;
+  el.innerHTML = `<i class="fas ${iconMap[type] || 'fa-info-circle'}"></i> ${msg}`;
+  stack.appendChild(el);
+  // stagger entrance
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 400);
+  }, 3800);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   CHART HELPERS
+────────────────────────────────────────────────────────────── */
+const CHART_COLORS = ['#f59e0b','#10b981','#8b5cf6','#0ea5e9','#ef4444','#06b6d4','#ec4899','#84cc16'];
+
+function chartOpts(title, minY = 0, maxY = 1) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: title.includes('/') },
+      tooltip: { callbacks: { label: ctx => ` ${(ctx.parsed.y * 100).toFixed(1)}%` } },
+    },
+    scales: {
+      x: { grid: { color: '#e2e8f022' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+      y: {
+        min: minY, max: maxY,
+        grid: { color: '#e2e8f022' },
+        ticks: { color: '#94a3b8', font: { size: 11 }, callback: v => (v * 100).toFixed(0) + '%' },
+      },
+    },
+  };
+}
+
+/* ──────────────────────────────────────────────────────────────
+   DOM HELPERS
+────────────────────────────────────────────────────────────── */
+const byId  = id  => document.getElementById(id);
+const getVal = id => byId(id)?.value ?? '';
+const setEl  = (id, v) => { const el = byId(id); if (el) el.textContent = v; };
+const fmt    = v  => (v != null && v !== '–') ? Number(v).toLocaleString() : '–';
+const pct    = v  => v != null ? (v * 100).toFixed(1) + '%' : '–';
+const fmtPct = v  => v != null ? (v * 100).toFixed(1) + '%' : '–';
+
+function setBtnLoading(btn, text) {
+  if (!btn) return;
+  btn.disabled = true;
+  btn._origHTML = btn.innerHTML;
+  btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${text}`;
+}
+function setBtnReady(btn, html) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.innerHTML = html || btn._origHTML || html;
+}
+
+function showBox(el, type, html) {
+  if (!el) return;
+  el.className = `result-box ${type}`;
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+}
+
+function setStatus(id, state, text) {
+  const el = byId(id);
+  if (!el) return;
+  const iconMap = {
+    idle:    '<span class="dot-idle"></span>',
+    running: '<i class="fas fa-spinner fa-spin" style="color:#f59e0b"></i>',
+    done:    '<i class="fas fa-check-circle" style="color:#10b981"></i>',
+    err:     '<i class="fas fa-times-circle" style="color:#ef4444"></i>',
+  };
+  el.innerHTML = `${iconMap[state] || iconMap.idle} ${text}`;
+}
+
+/* mini stat for result boxes */
+function mStat(val, label, color) {
+  return `<span class="mini-stat" style="border-color:${color}22">
+    <strong style="color:${color}">${fmt(val)}</strong>
+    <em>${label}</em>
+  </span>`;
+}
+
+/* pred stats box */
+function psBox(val, label, color) {
+  return `<div class="ps-box" style="border-top:3px solid ${color}">
+    <div class="ps-val" style="color:${color}">${typeof val === 'string' ? val : fmt(val)}</div>
+    <div class="ps-lbl">${label}</div>
+  </div>`;
+}
+
+function extractErr(err) {
+  if (!err.response) return err.message ?? '알 수 없는 오류';
+  const d = err.response.data;
+  if (!d) return err.message;
+  if (typeof d.detail === 'string') return d.detail;
+  if (typeof d.detail === 'object') return JSON.stringify(d.detail).slice(0, 200);
+  return JSON.stringify(d).slice(0, 200);
 }
