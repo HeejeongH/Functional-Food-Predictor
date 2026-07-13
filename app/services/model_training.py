@@ -20,6 +20,18 @@ except ImportError:
     TABPFN_AVAILABLE = False
     print("Warning: TabPFN not available")
 
+# GPU 자동 감지 (CUDA 사용 가능하면 GPU, 없으면 CPU)
+try:
+    import torch
+    TABPFN_DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if TABPFN_DEVICE == 'cuda':
+        print(f"TabPFN: GPU 사용 ({torch.cuda.get_device_name(0)})")
+    else:
+        print("TabPFN: CPU 사용 (CUDA 없음)")
+except ImportError:
+    TABPFN_DEVICE = 'cpu'
+    print("TabPFN: CPU 사용 (torch 없음)")
+
 class ModelTrainingService:
     
     def __init__(self):
@@ -34,8 +46,8 @@ class ModelTrainingService:
         if model_type == "TabPFN":
             if not TABPFN_AVAILABLE:
                 raise ValueError("TabPFN is not available. Please install tabpfn package.")
-            # TabPFN v6.4.1+ uses simplified API
-            return TabPFNClassifier(device='cpu')
+            # TabPFN: CUDA 자동 감지
+            return TabPFNClassifier(device=TABPFN_DEVICE)
         
         elif model_type == "XGBoost":
             return XGBClassifier(
