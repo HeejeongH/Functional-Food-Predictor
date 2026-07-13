@@ -5,7 +5,6 @@
 # Supports: TabPFN, XGBoost, LightGBM, CatBoost, RandomForest
 # Features: FooDB integration, SHAP analysis, 3D conformer generation
 
-version: '3.8'
 
 services:
   pci-api:
