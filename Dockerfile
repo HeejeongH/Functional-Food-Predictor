@@ -47,7 +47,8 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # TabPFN
-RUN pip install --no-cache-dir tabpfn
+# TabPFN v2 (최신, Nature 2025)
+RUN pip install --no-cache-dir "tabpfn>=2.0"
 
 
 # Stage 2: Runtime
